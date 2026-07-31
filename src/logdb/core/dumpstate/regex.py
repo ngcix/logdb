@@ -1,0 +1,4 @@
+
+DEFAULT_REGEX = [
+    r""
+]
