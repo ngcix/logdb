@@ -1,6 +1,9 @@
 import argparse
 import sys
 
+from logdb.config import load_config
+from logdb.core import db_make
+
 
 def register(parser: argparse.ArgumentParser):
     """Register the make command and its arguments."""
@@ -14,7 +17,7 @@ def register(parser: argparse.ArgumentParser):
         "-t",
         "--type",
         required=True,
-        choices=("dumpstate", "wireshark"),
+        choices=("dumpstate", "pcap", "hci"),
         help="Input log type",
     )
     parser.add_argument(
@@ -27,6 +30,9 @@ def register(parser: argparse.ArgumentParser):
 
 
 def run(args: argparse.Namespace) -> int:
-    """Build a DuckDB database from a supported log file."""
-    print("The make command is not implemented yet.", file=sys.stderr)
-    return 1
+    config = load_config(args.type, args.output)
+    try:
+        return db_make(args.type, args.input, args.output, config)
+    except FileExistsError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1

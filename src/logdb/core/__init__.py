@@ -1,7 +1,7 @@
-from logdb.core.core import make_database
+from logdb.core.core import db_make
 
 __all__ = [
-    make_database
+    db_make
 ]
 
 

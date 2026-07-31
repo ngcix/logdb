@@ -1,0 +1,84 @@
+
+COLUMNS = """
+    line_no       BIGINT PRIMARY KEY,
+    log_date      VARCHAR,
+    log_time      VARCHAR,
+    ts_order      BIGINT NOT NULL,
+    level         VARCHAR(1),
+    uid           VARCHAR,
+    pid           VARCHAR,
+    tid           VARCHAR,
+    tag           VARCHAR NOT NULL,
+    message       TEXT NOT NULL,
+    raw_line      TEXT NOT NULL,
+"""
+
+REGEX = [
+    r"^(?:<\d+>)?\[(?P<log_time>\s*\d+\.\d+)\]\s+"
+    r"(?:(?P<tag>[^:\[][^:]*):\s+)?(?P<message>.*)$",
+
+    r"^(?P<log_date>[A-Z][a-z]{2} \S+)\s+(?P<log_time>\S+)\s+\S+\s+"
+    r"(?P<tag>[^\s\[]+)(?:\[(?P<pid>\d+)\])?:\s*(?P<message>.*)$",
+
+    r"^\[(?P<log_date>\S+)\s+(?P<log_time>\S+)\]\s+\[[^\]]*\]\s+"
+    r"\[(?P<tag>[^\]]*)\]\s+(?P<message>.*)$",
+
+    r"^\s*(?P<pid>\d+)/\s*(?P<tid>\d+)/(?P<tag>[A-Z]+)/"
+    r"(?P<level>[A-Z])/\s*[^/]+/\s*(?P<message>.*)$",
+
+    r"^(?P<log_date>\S+)\s+(?P<log_time>\S+)\s+(?P<level>[A-Z])/"
+    r"(?P<tag>[^(:\s]+)(?:\(\s*(?P<pid>\d+)\))?:\s*(?P<message>.*)$",
+
+    r"^(?P<log_date>\S+)\s+(?P<log_time>\S+)\s+(?P<uid>\S+)\s+"
+    r"(?P<pid>\S+)\s+(?P<tid>\S+)\s+(?P<level>[A-Z])\s+"
+    r"(?P<tag>[^:]*?)\s*:\s*(?P<message>.*)$",
+
+    r"^(?P<log_date>\S+)\s+(?P<log_time>\S+)\s+(?P<pid>\S+)\s+"
+    r"(?P<tid>\S+)\s+(?P<level>[A-Z])\s+(?P<tag>[^:]*?)\s*:\s*"
+    r"(?P<message>.*)$",
+]
+
+INSERT_COLUMNS = [
+    "line_no",
+    "log_date",
+    "log_time",
+    "ts_order",
+    "level",
+    "uid",
+    "pid",
+    "tid",
+    "tag",
+    "message",
+    "raw_line",
+]
+
+
+def make_default_config() -> str:
+    """Return the default dumpstate TOML configuration."""
+    regex_lines = [
+        f"  '''{pattern}''',"
+        for pattern in REGEX
+    ]
+    insert_columns = ", ".join(f'"{column}"' for column in INSERT_COLUMNS)
+
+    return "\n".join(
+        [
+            "[logdb]",
+            'type = "dumpstate"',
+            "",
+            "[table]",
+            'name = "dumpstate"',
+            'columns_sql = """',
+            COLUMNS.strip(),
+            '"""',
+            "",
+            "[insert]",
+            f"columns = [{insert_columns}]",
+            "",
+            "[filter]",
+            "regex = [",
+            *regex_lines,
+            "]",
+            "",
+        ]
+    )

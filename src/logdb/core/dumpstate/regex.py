@@ -1,4 +1,0 @@
-
-DEFAULT_REGEX = [
-    r""
-]
