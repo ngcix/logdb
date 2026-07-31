@@ -1,42 +1,53 @@
-import sys
 import argparse
 
-import logdb.core
-from logdb.config import CONFIG_FILE_NAME
+from logdb.command import make, next, previous, query, search
 
 PROGRAM_NAME = "logdb"
 
 
-
-
 def parser_builder() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog=PROGRAM_NAME)
-    sp = ap.add_subparsers(dest="cmd", required=True)
-    p = sp.add_parser(
-        "config-init",
-        help=f"Write {CONFIG_FILE_NAME} into the current directory",
-    )
+    parser = argparse.ArgumentParser(prog=PROGRAM_NAME)
+    commands = parser.add_subparsers(dest="cmd", required=True)
 
-    p.add_argument(
-        '-m', '--make',
-        action='append',
-        type=str, 
-        help="",
+    make_parser = commands.add_parser(
+        "make",
+        help="Import a log file into a DuckDB database",
     )
+    make.register(make_parser)
 
-    p.add_argument(
-        '-t', '--table',
-        action='append',
-        type=str, 
-        help=""
+    search_parser = commands.add_parser(
+        "search",
+        help="Search records in a database table",
     )
+    search.register(search_parser)
+
+    next_parser = commands.add_parser(
+        "next",
+        help="Return records after a line",
+    )
+    next.register(next_parser)
+
+    previous_parser = commands.add_parser(
+        "previous",
+        help="Return records before a line",
+    )
+    previous.register(previous_parser)
+
+    query_parser = commands.add_parser(
+        "query",
+        help="Run a read-only SQL query",
+    )
+    query.register(query_parser)
+
+    return parser
 
 
 def main() -> int:
-    argv = sys.argv
     parser = parser_builder()
+
     try:
-        args = parser.parse_args(argv)
-    except SystemExit as e:
-        return int(e.code) if e.code is not None else 1
+        args = parser.parse_args()
+    except SystemExit as error:
+        return int(error.code) if error.code is not None else 1
+
     return int(args.func(args))
