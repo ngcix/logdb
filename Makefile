@@ -6,13 +6,14 @@ TYPE ?= dumpstate
 SQL ?=
 ROWS ?= 100
 
-.PHONY: help install-dev test wheel make-db query
+.PHONY: help install-dev test wheel build make-db query
 
 help:
 	@echo "Development"
 	@echo "  make install-dev"
 	@echo "  make test"
 	@echo "  make wheel"
+	@echo "  make build          Build executable with Nuitka"
 	@echo ""
 	@echo "LogDB"
 	@echo "  make make-db LOG=path/to/dumpstate [DB=case.duckdb] [TYPE=dumpstate]"
@@ -26,6 +27,10 @@ test:
 
 wheel:
 	$(PYTHON) -m build --wheel
+
+build:
+	$(PIP) install nuitka -q
+	python -m nuitka --onefile --output-dir=dist --output-filename=logdb src/logdb/__main__.py
 
 make-db:
 ifndef LOG
