@@ -1,3 +1,4 @@
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -113,5 +114,91 @@ def _table_columns(
     }
 
 
+def run_next(
+    database_path: str,
+    table_name: str,
+    line_no: int,
+    filters: Sequence[tuple[str, str]],
+    *,
+    max_rows: int = 100,
+) -> QueryResult:
+    """Return records after a given line with optional regex column filters."""
+    connection = duckdb.connect(database_path, read_only=True)
+
+    try:
+        sql = f"SELECT * FROM {_quote_identifier(table_name)} WHERE line_no > ?"
+        parameters: list[Any] = [line_no]
+
+        for column_name, pattern in filters:
+            sql += f" AND regexp_matches(CAST({_quote_identifier(column_name)} AS VARCHAR), ?, 'i')"
+            parameters.append(pattern)
+
+        sql += " ORDER BY line_no"
+
+        return fetch_rows(connection, sql, parameters, max_rows=max_rows)
+    finally:
+        connection.close()
+
+
+def run_previous(
+    database_path: str,
+    table_name: str,
+    line_no: int,
+    filters: Sequence[tuple[str, str]],
+    *,
+    max_rows: int = 100,
+) -> QueryResult:
+    """Return records before a given line with optional regex column filters."""
+    connection = duckdb.connect(database_path, read_only=True)
+
+    try:
+        sql = f"SELECT * FROM {_quote_identifier(table_name)} WHERE line_no < ?"
+        parameters: list[Any] = [line_no]
+
+        for column_name, pattern in filters:
+            sql += f" AND regexp_matches(CAST({_quote_identifier(column_name)} AS VARCHAR), ?, 'i')"
+            parameters.append(pattern)
+
+        sql += " ORDER BY line_no DESC"
+
+        return fetch_rows(connection, sql, parameters, max_rows=max_rows)
+    finally:
+        connection.close()
+
+
 def _quote_identifier(identifier: str) -> str:
     return '"' + identifier.replace('"', '""') + '"'
+
+
+def get_tables(database_path: str) -> list[dict[str, Any]]:
+    """Get list of tables with their columns."""
+    connection = duckdb.connect(database_path, read_only=True)
+    try:
+        tables_result = connection.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
+        ).fetchall()
+
+        tables = []
+        for table_row in tables_result:
+            table_name = table_row[0]
+            columns_result = connection.execute(
+                f"DESCRIBE {_quote_identifier(table_name)}"
+            ).fetchall()
+            columns = [col[0] for col in columns_result]
+            tables.append({"name": table_name, "columns": columns})
+
+        return tables
+    finally:
+        connection.close()
+
+
+def format_json(result: QueryResult) -> str:
+    """Convert QueryResult to JSON format."""
+    rows_as_dicts = [dict(zip(result.columns, row)) for row in result.rows]
+    data = {
+        "columns": result.columns,
+        "rows": rows_as_dicts,
+        "row_count": len(result.rows),
+        "truncated": result.truncated,
+    }
+    return json.dumps(data)

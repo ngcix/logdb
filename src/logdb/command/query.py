@@ -3,7 +3,7 @@ import sys
 
 import duckdb
 
-from logdb.database.query import QueryResult, run_query
+from logdb.database.query import format_json, run_query
 
 
 def register(parser: argparse.ArgumentParser) -> None:
@@ -26,20 +26,10 @@ def run(args: argparse.Namespace) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 1
 
-    _print_result(result)
-    return 0
-
-
-def _print_result(result: QueryResult) -> None:
-    print("\t".join(result.columns))
-
-    for row in result.rows:
-        print("\t".join("" if value is None else str(value) for value in row))
-
-    print(f"({len(result.rows)} rows)")
-
+    print(format_json(result))
     if result.truncated:
         print(
             "output truncated; increase --rows to see more",
             file=sys.stderr,
         )
+    return 0

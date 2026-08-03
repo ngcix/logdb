@@ -1,8 +1,8 @@
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 import re
 import tomllib
-from typing import Any
 
 
 def _load_dumpstate_default() -> str:
@@ -50,9 +50,7 @@ def _validate_config(config: dict[str, Any], log_type: str) -> None:
     if not isinstance(table.get("name"), str):
         raise ValueError("Config must define table.name")
     if not isinstance(columns_sql, str) or not isinstance(insert_columns, list):
-        raise ValueError(
-            "Config must define table.columns_sql and insert.columns"
-        )
+        raise ValueError("Config must define table.columns_sql and insert.columns")
     if not isinstance(patterns, list) or not all(
         isinstance(pattern, str) for pattern in patterns
     ):
@@ -61,6 +59,4 @@ def _validate_config(config: dict[str, Any], log_type: str) -> None:
     for pattern in patterns:
         regex_columns = set(re.compile(pattern).groupindex)
         if not regex_columns.issubset(insert_columns):
-            raise ValueError(
-                "Every named regex group must exist in insert.columns"
-            )
+            raise ValueError("Every named regex group must exist in insert.columns")

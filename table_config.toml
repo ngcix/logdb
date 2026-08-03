@@ -1,0 +1,53 @@
+# =============================================================================
+# LOG PARSER CONFIGURATION GUIDE (TOML FORMAT)
+# =============================================================================
+# General Rules:
+# 1. Variable and column names are case-sensitive.
+# 2. Always use single triple-quotes (''') for Regex strings to avoid escaping backslashes.
+# =============================================================================
+
+[logdb]
+# Defines the log type or project name (used to categorize the log source).
+# Example: "dumpstate", "nginx_access", "app_event", etc.
+type = "your_log_type_here"
+
+[table]
+# The name of the table that will be created in the database.
+name = "your_sql_table_name"
+
+# Defines the table schema (Must be valid SQL syntax. DO NOT put a comma on the last line).
+# Highly recommended standard columns: line_no (line number) and raw_line (the original log string).
+columns_sql = """
+    line_no       BIGINT PRIMARY KEY,
+    log_date      VARCHAR,
+    log_time      VARCHAR,
+    level         VARCHAR(10),
+    module        VARCHAR,
+    message       TEXT,
+    raw_line      TEXT NOT NULL
+"""
+
+[insert]
+# The list of columns to map the extracted data into the SQL INSERT statement.
+# The names and their order MUST MATCH the columns defined in the [table] section exactly.
+columns = ["line_no", "log_date", "log_time", "level", "module", "message", "raw_line"]
+
+[filter]
+# The list of Regular Expressions used to parse the log lines.
+# The system evaluates each Regex from top to bottom. The first one that matches is applied.
+regex = [
+    # MANDATORY SYNTAX: You must use Named Capturing Groups: (?P<column_name>pattern)
+    # The 'column_name' inside (?P<...>) MUST EXACTLY MATCH the columns declared in [insert] and [table].
+    
+    # Example 1: Captures a full log with date, time, level, module, and message
+    # Log format: 2026-08-03 13:41:00 [INFO] [AuthService] User logged in
+    '''^(?P<log_date>\d{4}-\d{2}-\d{2})\s+(?P<log_time>\d{2}:\d{2}:\d{2})\s+\[(?P<level>[A-Z]+)\]\s+\[(?P<module>[^\]]+)\]\s+(?P<message>.*)$''',
+
+    # Example 2: Missing module (Fallback Regex for shorter log formats)
+    # Log format: 2026-08-03 13:42:00 [ERROR] Database connection failed
+    '''^(?P<log_date>\d{4}-\d{2}-\d{2})\s+(?P<log_time>\d{2}:\d{2}:\d{2})\s+\[(?P<level>[A-Z]+)\]\s+(?P<message>.*)$''',
+
+    # Example 3: Catch-all Regex (Puts the entire line into 'message' if above formats fail)
+    # Log format: Any random string or Exception stacktrace
+    '''^(?P<message>.*)$'''
+]

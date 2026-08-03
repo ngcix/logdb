@@ -9,10 +9,7 @@ def preprocess(
 ) -> Iterator[dict[str, object]]:
     """Yield one parsed record mapping for every input line."""
     columns = config["insert"]["columns"]
-    patterns = [
-        re.compile(pattern)
-        for pattern in config["filter"]["regex"]
-    ]
+    patterns = [re.compile(pattern) for pattern in config["filter"]["regex"]]
 
     with open(log_path, encoding="utf-8", errors="replace") as log_file:
         for line_no, raw_line in enumerate(log_file, start=1):

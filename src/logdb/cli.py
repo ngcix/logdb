@@ -1,6 +1,6 @@
 import argparse
 
-from logdb.command import make, next, previous, query, search
+from logdb.command import inspect, make, next, previous, query, search
 
 PROGRAM_NAME = "logdb"
 
@@ -38,6 +38,12 @@ def parser_builder() -> argparse.ArgumentParser:
         help="Run a read-only SQL query",
     )
     query.register(query_parser)
+
+    inspect_parser = commands.add_parser(
+        "inspect",
+        help="List tables in a database",
+    )
+    inspect.register(inspect_parser)
 
     return parser
 

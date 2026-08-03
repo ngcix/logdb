@@ -59,77 +59,63 @@ reasoning and investigation workflow are defined outside this CLI.
 - if the line contains `word` or `sentences` (plain text search)
 
 
-# Command template
+# Commands
 
-logdb make
-logdb search
-logdb next
-logdb previous
-logdb query
+## make
+Import a log file into a DuckDB database.
 
-## -m, --make <database_name>
-Make a database from logfile
-    sub_cmd:
-    -i, --input <file_path>
+```bash
+logdb make -i <input_path> -t <type> -o <output_path>
+```
 
-    -t, --type <db type>
-        db type: dumpstate or wireshark
+- `-i, --input` — Path to the input log file
+- `-t, --type` — Log type: `dumpstate`, `pcap`, or `hci`
+- `-o, --output` — Path to the output DuckDB database
 
-## -s, --search <database_file> 
-search inside database with multiple column filter and limit rows output
-- sub_cmd:
-    -t, --table `table_name`
+Creates a sidecar `.toml` config file with schema and parsing rules.
 
-    -r, --rows <max number of output rows>
+## inspect
+List tables in a database.
 
-    
-    -c, --column <column_name> <value>
+```bash
+logdb inspect <database>
+```
 
+- `database` — Path to the DuckDB database
 
-    - value:
-            single value: Settings
-            any column which value contains Settings
+## search
+Search records in a database table with regex-based column filtering.
 
-            multi regex: Settings|ActivityManager
-            any column which value contains Settings or ActivityManager
+```bash
+logdb search <database> -t <table> [-c <column> <regex>]... [-r <rows>]
+```
 
+- `database` — Path to the DuckDB database
+- `-t, --table` — Table name to search
+- `-c, --column` — Regex-filter a column (repeat to combine filters with AND)
+- `-r, --rows` — Maximum rows to return (default: 100)
 
-        multi sub_cmd:
+## next
+Return records after a specified line (pending implementation).
 
-        -c, --column <column_name_1> <value_1> -c, --column <column_name_2> <value_2> ...
-            find all column_name_1 contains value_1 then from result, filter column_name_2 contains value_2
+```bash
+logdb next <database> -t <table> -l <line> [-c <column> <value>]... [-r <rows>]
+```
 
+## previous
+Return records before a specified line (pending implementation).
 
-        
+```bash
+logdb previous <database> -t <table> -l <line> [-c <column> <value>]... [-r <rows>]
+```
 
-## -n, --next <database_file> 
-return the lines printed after current line, column filter is optional
-    sub_cmd:
-    -l, --line <current line number> 
+## query
+Run a read-only SQL query.
 
-    -t, --table <table_name>
+```bash
+logdb query <database> <sql> [-r <rows>]
+```
 
-    -r, --rows <max number of output rows>
-
-
-        -c, --column <column_name> <value>
-
-
-        value:
-            single value: Settings
-            any column which value contains Settings
-
-            multi regex: Settings|ActivityManager
-            any column which value contains Settings or ActivityManager
-
-
-        multi sub_cmd:
-
-        -c, --column <column_name_1> <value_1> -c, --column <column_name_2> <value_2> ...
-            find all column_name_1 contains value_1 then from result, filter column_name_2 contains value_2
-
-## -p, --previous <database_file> 
-return the lines printed before current line, column filter is optional
-
-
-## -q --query <database_file> "<SQL_raw>"
+- `database` — Path to the DuckDB database
+- `sql` — Read-only SQL query
+- `-r, --rows` — Maximum rows to print (default: 100)

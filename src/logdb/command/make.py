@@ -30,9 +30,8 @@ def register(parser: argparse.ArgumentParser):
 
 
 def run(args: argparse.Namespace) -> int:
-    config = load_config(args.type, args.output)
     try:
-        return db_make(args.type, args.input, args.output, config)
+        return db_make(args.type, args.input, args.output)
     except FileExistsError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
