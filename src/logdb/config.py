@@ -11,8 +11,15 @@ def _load_dumpstate_default() -> str:
     return make_default_config()
 
 
+def _load_pcap_default() -> str:
+    from logdb.core.pcap.config import make_default_config
+
+    return make_default_config()
+
+
 DEFAULT_CONFIG_LOADERS: dict[str, Callable[[], str]] = {
     "dumpstate": _load_dumpstate_default,
+    "pcap": _load_pcap_default,
 }
 
 
@@ -45,18 +52,27 @@ def _validate_config(config: dict[str, Any], log_type: str) -> None:
     table = config.get("table", {})
     columns_sql = table.get("columns_sql")
     insert_columns = config.get("insert", {}).get("columns")
-    patterns = config.get("filter", {}).get("regex")
 
     if not isinstance(table.get("name"), str):
         raise ValueError("Config must define table.name")
     if not isinstance(columns_sql, str) or not isinstance(insert_columns, list):
         raise ValueError("Config must define table.columns_sql and insert.columns")
-    if not isinstance(patterns, list) or not all(
-        isinstance(pattern, str) for pattern in patterns
-    ):
-        raise ValueError("Config must define filter.regex as a list of patterns")
 
-    for pattern in patterns:
-        regex_columns = set(re.compile(pattern).groupindex)
-        if not regex_columns.issubset(insert_columns):
-            raise ValueError("Every named regex group must exist in insert.columns")
+    if log_type == "dumpstate":
+        patterns = config.get("filter", {}).get("regex")
+        if not isinstance(patterns, list) or not all(
+            isinstance(pattern, str) for pattern in patterns
+        ):
+            raise ValueError("Config must define filter.regex as a list of patterns")
+
+        for pattern in patterns:
+            regex_columns = set(re.compile(pattern).groupindex)
+            if not regex_columns.issubset(insert_columns):
+                raise ValueError("Every named regex group must exist in insert.columns")
+
+    elif log_type == "pcap":
+        fields = config.get("insert", {}).get("fields")
+        if not isinstance(fields, list) or not all(
+            isinstance(field, str) for field in fields
+        ):
+            raise ValueError("Config must define insert.fields as a list of tshark fields")

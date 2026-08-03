@@ -1,5 +1,5 @@
 from logdb.core.dumpstate import db_make as make_dumpstate
-from logdb.core.pcap.db_make import db_make as make_pcap
+from logdb.core.pcap import db_make as make_pcap
 
 
 def db_make(

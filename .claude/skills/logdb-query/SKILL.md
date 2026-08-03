@@ -8,12 +8,17 @@ version: 1.0.0
 
 Lightweight CLI to import large Android dumpstate/logcat logs into DuckDB and return structured evidence for AI agents and users.
 
+**CLI Usage:** Commands can be run as either:
+- `logdb <command>` — if installed/built as executable
+- `python -m logdb <command>` — if running from source
+
 ## Quick Start
 
 ### 1. Create Database from Log File
 
 ```bash
 logdb make -i path/to/dumpstate.log -t dumpstate -o case.duckdb
+# or: python -m logdb make -i path/to/dumpstate.log -t dumpstate -o case.duckdb
 ```
 
 Creates:
@@ -24,6 +29,7 @@ Creates:
 
 ```bash
 logdb inspect case.duckdb
+# or: python -m logdb inspect case.duckdb
 ```
 
 Output: JSON with table names and column lists.
@@ -32,6 +38,7 @@ Output: JSON with table names and column lists.
 
 ```bash
 logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -c level "ERROR" -r 50
+# or: python -m logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -c level "ERROR" -r 50
 ```
 
 - `-t, --table` — Table to search
@@ -43,20 +50,24 @@ logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -c level "ERROR" 
 ```bash
 # Get records after line 500
 logdb next case.duckdb -t dumpstate -l 500 -r 20
+# or: python -m logdb next case.duckdb -t dumpstate -l 500 -r 20
 
 # Get records before line 500 (in reverse order)
 logdb previous case.dumpstate -t dumpstate -l 500 -r 20
+# or: python -m logdb previous case.dumpstate -t dumpstate -l 500 -r 20
 ```
 
 With optional column filters:
 ```bash
 logdb next case.duckdb -t dumpstate -l 500 -c pid "1234" -r 10
+# or: python -m logdb next case.duckdb -t dumpstate -l 500 -c pid "1234" -r 10
 ```
 
 ### 5. Raw SQL Queries
 
 ```bash
 logdb query case.duckdb "SELECT * FROM dumpstate WHERE tag LIKE '%Activity%' ORDER BY line_no" --rows 50
+# or: python -m logdb query case.duckdb "SELECT * FROM dumpstate WHERE tag LIKE '%Activity%' ORDER BY line_no" --rows 50
 ```
 
 ## Output Format
@@ -119,6 +130,8 @@ logdb search case.duckdb -t dumpstate -c level "ERROR" -r 5
 logdb previous case.duckdb -t dumpstate -l 523 -r 10
 ```
 
+*(Replace `logdb` with `python -m logdb` when running from source)*
+
 ### Trace Module Calls
 
 ```bash
@@ -129,6 +142,8 @@ logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -r 100
 logdb next case.duckdb -t dumpstate -l 1200 -c tag "ActivityManager" -r 20
 ```
 
+*(Replace `logdb` with `python -m logdb` when running from source)*
+
 ### Cross-Module Correlation
 
 ```bash
@@ -138,3 +153,5 @@ logdb query case.duckdb \
    AND line_no BETWEEN 1000 AND 2000
    ORDER BY line_no"
 ```
+
+*(Replace `logdb` with `python -m logdb` when running from source)*
