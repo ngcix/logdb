@@ -25,6 +25,20 @@ def register(parser: argparse.ArgumentParser) -> None:
         default=100,
         help="Maximum rows to return (default: 100)",
     )
+    parser.add_argument(
+        "--from",
+        dest="from_line",
+        type=int,
+        default=None,
+        help="Start line number (inclusive)",
+    )
+    parser.add_argument(
+        "--to",
+        dest="to_line",
+        type=int,
+        default=None,
+        help="End line number (inclusive)",
+    )
     parser.set_defaults(func=run)
 
 
@@ -35,6 +49,8 @@ def run(args: argparse.Namespace) -> int:
             args.table,
             args.column,
             max_rows=args.rows,
+            from_line=args.from_line,
+            to_line=args.to_line,
         )
     except (duckdb.Error, OSError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)

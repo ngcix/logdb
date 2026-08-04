@@ -64,14 +64,27 @@ def run_search(
     filters: Sequence[tuple[str, str]],
     *,
     max_rows: int = 100,
+    from_line: int | None = None,
+    to_line: int | None = None,
 ) -> QueryResult:
-    """Search table columns with AND-combined, case-insensitive regex filters."""
+    """Search table columns with AND-combined, case-insensitive regex filters and optional line_no range."""
     connection = duckdb.connect(database_path, read_only=True)
 
     try:
         columns = _table_columns(connection, table_name)
         conditions: list[str] = []
-        parameters: list[str] = []
+        parameters: list[Any] = []
+
+        if from_line is not None or to_line is not None:
+            if from_line is not None and to_line is not None:
+                conditions.append("line_no BETWEEN ? AND ?")
+                parameters.extend([from_line, to_line])
+            elif from_line is not None:
+                conditions.append("line_no >= ?")
+                parameters.append(from_line)
+            else:
+                conditions.append("line_no <= ?")
+                parameters.append(to_line)
 
         for requested_column, pattern in filters:
             column_name = columns.get(requested_column.casefold())
