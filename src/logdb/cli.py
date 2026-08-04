@@ -1,4 +1,6 @@
 import argparse
+import time
+from datetime import timedelta
 
 from logdb.command import inspect, make, next, previous, query, search
 
@@ -56,4 +58,8 @@ def main() -> int:
     except SystemExit as error:
         return int(error.code) if error.code is not None else 1
 
-    return int(args.func(args))
+    start_time = time.time()
+    result = int(args.func(args))
+    elapsed_sec = time.time() - start_time
+    print(f"Execution time: {timedelta(seconds=elapsed_sec)}")
+    return result
