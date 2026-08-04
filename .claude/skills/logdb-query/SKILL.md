@@ -8,17 +8,36 @@ version: 1.0.0
 
 Lightweight CLI to import large Android dumpstate/logcat logs into DuckDB and return structured evidence for AI agents and users.
 
-**CLI Usage:** Commands can be run as either:
-- `logdb <command>` — if installed/built as executable
-- `python -m logdb <command>` — if running from source
+## Setup — Resolve the Tool
+
+Set `$LOGDB` environment variable once per session, then reuse for all commands:
+
+```bash
+# Preferred: Installed executable on PATH (Nuitka binary or pip install)
+export LOGDB=logdb
+
+# Or: Local binary in checkout (after `make build`)
+# export LOGDB=./dist/__main__        # Windows: ./dist/__main__.exe
+# export LOGDB=./dist/__main__
+
+# Or: Last resort — run from source
+# export LOGDB="python -m logdb"
+```
+
+Then use it:
+```bash
+"$LOGDB" make -i input.log -t dumpstate -o case.duckdb
+"$LOGDB" search case.duckdb -t dumpstate -c tag ERROR
+```
+
+**Priority order** (if `$LOGDB` not set): `logdb` on PATH → `./dist/__main__` (or `.exe`) → `python -m logdb`
 
 ## Quick Start
 
 ### 1. Create Database from Log File
 
 ```bash
-logdb make -i path/to/dumpstate.log -t dumpstate -o case.duckdb
-# or: python -m logdb make -i path/to/dumpstate.log -t dumpstate -o case.duckdb
+"$LOGDB" make -i path/to/dumpstate.log -t dumpstate -o case.duckdb
 ```
 
 Creates:
@@ -28,8 +47,7 @@ Creates:
 ### 2. Inspect Database Schema
 
 ```bash
-logdb inspect case.duckdb
-# or: python -m logdb inspect case.duckdb
+"$LOGDB" inspect case.duckdb
 ```
 
 Output: JSON with table names and column lists.
@@ -38,8 +56,7 @@ Output: JSON with table names and column lists.
 
 #### Basic Search
 ```bash
-logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -c level "ERROR" -r 50
-# or: python -m logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -c level "ERROR" -r 50
+"$LOGDB" search case.duckdb -t dumpstate -c tag "ActivityManager" -c level "ERROR" -r 50
 ```
 
 Options:
@@ -49,8 +66,7 @@ Options:
 
 #### Search Within Line Range
 ```bash
-logdb search case.duckdb -t dumpstate --from 100 --to 500 -c tag "ERROR" -r 50
-# or: python -m logdb search case.duckdb -t dumpstate --from 100 --to 500 -c tag "ERROR" -r 50
+"$LOGDB" search case.duckdb -t dumpstate --from 100 --to 500 -c tag "ERROR" -r 50
 ```
 
 Options:
@@ -63,8 +79,7 @@ Options:
 
 #### Get Next Records (After a Line)
 ```bash
-logdb next case.duckdb -t dumpstate -l 500 -r 20
-# or: python -m logdb next case.duckdb -t dumpstate -l 500 -r 20
+"$LOGDB" next case.duckdb -t dumpstate -l 500 -r 20
 ```
 
 This returns the 20 records immediately after line 500. Useful for:
@@ -74,8 +89,7 @@ This returns the 20 records immediately after line 500. Useful for:
 
 #### Get Previous Records (Before a Line)
 ```bash
-logdb previous case.duckdb -t dumpstate -l 500 -r 20
-# or: python -m logdb previous case.dumpstate -t dumpstate -l 500 -r 20
+"$LOGDB" previous case.duckdb -t dumpstate -l 500 -r 20
 ```
 
 Returns the 20 records before line 500 in reverse order. Useful for:
@@ -85,8 +99,7 @@ Returns the 20 records before line 500 in reverse order. Useful for:
 #### With Column Filters
 Combine with regex filters (AND-combined):
 ```bash
-logdb next case.duckdb -t dumpstate -l 500 -c tag "ActivityManager" -r 10
-# or: python -m logdb next case.duckdb -t dumpstate -l 500 -c tag "ActivityManager" -r 10
+"$LOGDB" next case.duckdb -t dumpstate -l 500 -c tag "ActivityManager" -r 10
 ```
 
 Options:
@@ -97,8 +110,7 @@ Options:
 ### 5. Raw SQL Queries
 
 ```bash
-logdb query case.duckdb "SELECT * FROM dumpstate WHERE tag LIKE '%Activity%' ORDER BY line_no" --rows 50
-# or: python -m logdb query case.duckdb "SELECT * FROM dumpstate WHERE tag LIKE '%Activity%' ORDER BY line_no" --rows 50
+"$LOGDB" query case.duckdb "SELECT * FROM dumpstate WHERE tag LIKE '%Activity%' ORDER BY line_no" --rows 50
 ```
 
 ## Output Format
@@ -137,47 +149,41 @@ Special commands:
 
 ```bash
 # Search for error in specific section
-logdb search case.duckdb -t dumpstate --from 1000 --to 5000 -c level "ERROR" -r 5
+"$LOGDB" search case.duckdb -t dumpstate --from 1000 --to 5000 -c level "ERROR" -r 5
 
 # Get 10 lines before error at line 2523 (for context)
-logdb previous case.duckdb -t dumpstate -l 2523 -r 10
+"$LOGDB" previous case.duckdb -t dumpstate -l 2523 -r 10
 ```
-
-*(Replace `logdb` with `python -m logdb` when running from source)*
 
 ### Trace Module Calls with Pagination
 
 ```bash
 # Find all ActivityManager events
-logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -r 50
+"$LOGDB" search case.duckdb -t dumpstate -c tag "ActivityManager" -r 50
 
 # From the last result (line 1200), continue browsing forward
-logdb next case.duckdb -t dumpstate -l 1200 -c tag "ActivityManager" -r 20
+"$LOGDB" next case.duckdb -t dumpstate -l 1200 -c tag "ActivityManager" -r 20
 
 # From that result (line 1350), continue further
-logdb next case.dumpstate -t dumpstate -l 1350 -c tag "ActivityManager" -r 20
+"$LOGDB" next case.duckdb -t dumpstate -l 1350 -c tag "ActivityManager" -r 20
 ```
 
 This pattern allows efficient pagination through filtered results using the line_no from the previous response.
-
-*(Replace `logdb` with `python -m logdb` when running from source)*
 
 ### Cross-Module Correlation in Range
 
 ```bash
 # Search for related errors in a specific line range
-logdb search case.duckdb -t dumpstate --from 5000 --to 10000 \
+"$LOGDB" search case.duckdb -t dumpstate --from 5000 --to 10000 \
   -c tag "Bluetooth" -c level "ERROR" -r 50
 ```
 
 Or with raw SQL for complex queries:
 
 ```bash
-logdb query case.duckdb \
+"$LOGDB" query case.duckdb \
   "SELECT line_no, tag, message FROM dumpstate 
    WHERE (tag LIKE '%Bluetooth%' OR tag LIKE '%Audio%')
    AND line_no BETWEEN 5000 AND 10000
    ORDER BY line_no"
 ```
-
-*(Replace `logdb` with `python -m logdb` when running from source)*
