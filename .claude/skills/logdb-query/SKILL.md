@@ -36,32 +36,63 @@ Output: JSON with table names and column lists.
 
 ### 3. Search Records
 
+#### Basic Search
 ```bash
 logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -c level "ERROR" -r 50
 # or: python -m logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -c level "ERROR" -r 50
 ```
 
+Options:
 - `-t, --table` — Table to search
 - `-c, --column` — Regex filter (repeatable, AND-combined)
 - `-r, --rows` — Limit output rows (default: 100)
 
+#### Search Within Line Range
+```bash
+logdb search case.duckdb -t dumpstate --from 100 --to 500 -c tag "ERROR" -r 50
+# or: python -m logdb search case.duckdb -t dumpstate --from 100 --to 500 -c tag "ERROR" -r 50
+```
+
+Options:
+- `--from` — Start line number (inclusive)
+- `--to` — End line number (inclusive)
+- Can use `--from` alone or `--to` alone
+- Combines with column filters using AND logic
+
 ### 4. Navigate by Line Number
 
+#### Get Next Records (After a Line)
 ```bash
-# Get records after line 500
 logdb next case.duckdb -t dumpstate -l 500 -r 20
 # or: python -m logdb next case.duckdb -t dumpstate -l 500 -r 20
+```
 
-# Get records before line 500 (in reverse order)
-logdb previous case.dumpstate -t dumpstate -l 500 -r 20
+This returns the 20 records immediately after line 500. Useful for:
+- Continuing from a previous search result
+- Pagination through results
+- Finding what happened after an error
+
+#### Get Previous Records (Before a Line)
+```bash
+logdb previous case.duckdb -t dumpstate -l 500 -r 20
 # or: python -m logdb previous case.dumpstate -t dumpstate -l 500 -r 20
 ```
 
-With optional column filters:
+Returns the 20 records before line 500 in reverse order. Useful for:
+- Getting context before an error
+- Tracing back to root cause
+
+#### With Column Filters
+Combine with regex filters (AND-combined):
 ```bash
-logdb next case.duckdb -t dumpstate -l 500 -c pid "1234" -r 10
-# or: python -m logdb next case.duckdb -t dumpstate -l 500 -c pid "1234" -r 10
+logdb next case.duckdb -t dumpstate -l 500 -c tag "ActivityManager" -r 10
+# or: python -m logdb next case.duckdb -t dumpstate -l 500 -c tag "ActivityManager" -r 10
 ```
+
+Options:
+- `-l, --line` — Current line number (required)
+- `-c, --column` — Regex filter (repeatable, AND-combined)
+- `-r, --rows` — Limit output rows (default: 100)
 
 ### 5. Raw SQL Queries
 
@@ -89,24 +120,6 @@ All commands return **JSON** by default:
 Special commands:
 - `inspect` → `{"tables": [{"name": "dumpstate", "columns": [...]}], "count": 1}`
 
-## Dumpstate Schema
-
-Default schema (auto-detected, configurable via TOML):
-
-| Column | Type | Purpose |
-|--------|------|---------|
-| `line_no` | int | Source line number (primary ordering) |
-| `log_date` | text | Date from parsed log line |
-| `log_time` | text | Time from parsed log line |
-| `ts_order` | int | Timestamp order counter |
-| `level` | text | Log level (ERROR, WARN, INFO, etc.) |
-| `uid` | int | User ID |
-| `pid` | int | Process ID |
-| `tid` | int | Thread ID |
-| `tag` | text | Log tag (component name) |
-| `message` | text | Log message |
-| `raw_line` | text | Original unparsed line |
-
 ## Commands
 
 | Command | Purpose |
@@ -123,34 +136,47 @@ Default schema (auto-detected, configurable via TOML):
 ### Find Error Context
 
 ```bash
-# Search for error
-logdb search case.duckdb -t dumpstate -c level "ERROR" -r 5
+# Search for error in specific section
+logdb search case.duckdb -t dumpstate --from 1000 --to 5000 -c level "ERROR" -r 5
 
-# Get 10 lines before error line 523 (context)
-logdb previous case.duckdb -t dumpstate -l 523 -r 10
+# Get 10 lines before error at line 2523 (for context)
+logdb previous case.duckdb -t dumpstate -l 2523 -r 10
 ```
 
 *(Replace `logdb` with `python -m logdb` when running from source)*
 
-### Trace Module Calls
+### Trace Module Calls with Pagination
 
 ```bash
-# All ActivityManager events
-logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -r 100
+# Find all ActivityManager events
+logdb search case.duckdb -t dumpstate -c tag "ActivityManager" -r 50
 
-# What happened after ActivityManager error at line 1200
+# From the last result (line 1200), continue browsing forward
 logdb next case.duckdb -t dumpstate -l 1200 -c tag "ActivityManager" -r 20
+
+# From that result (line 1350), continue further
+logdb next case.dumpstate -t dumpstate -l 1350 -c tag "ActivityManager" -r 20
 ```
+
+This pattern allows efficient pagination through filtered results using the line_no from the previous response.
 
 *(Replace `logdb` with `python -m logdb` when running from source)*
 
-### Cross-Module Correlation
+### Cross-Module Correlation in Range
+
+```bash
+# Search for related errors in a specific line range
+logdb search case.duckdb -t dumpstate --from 5000 --to 10000 \
+  -c tag "Bluetooth" -c level "ERROR" -r 50
+```
+
+Or with raw SQL for complex queries:
 
 ```bash
 logdb query case.duckdb \
   "SELECT line_no, tag, message FROM dumpstate 
    WHERE (tag LIKE '%Bluetooth%' OR tag LIKE '%Audio%')
-   AND line_no BETWEEN 1000 AND 2000
+   AND line_no BETWEEN 5000 AND 10000
    ORDER BY line_no"
 ```
 
