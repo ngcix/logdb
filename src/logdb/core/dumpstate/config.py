@@ -38,19 +38,20 @@ REGEX = [
     r"(?P<message>.*)$",
 ]
 
-INSERT_COLUMNS = [
-    "line_no",
-    "log_date",
-    "log_time",
-    "ts_order",
-    "level",
-    "uid",
-    "pid",
-    "tid",
-    "tag",
-    "message",
-    "raw_line",
-]
+
+def _extract_columns_from_sql(columns_sql: str) -> list[str]:
+    """Parse SQL column definition and return ordered list of column names."""
+    import re
+    columns = []
+    for line in columns_sql.strip().split(','):
+        line = line.strip()
+        if not line:
+            continue
+        match = re.match(r'^"([^"]+)"|^(\w+)', line)
+        if match:
+            name = match.group(1) or match.group(2)
+            columns.append(f'"{name}"')
+    return columns
 
 
 def make_default_config() -> str:
@@ -59,7 +60,7 @@ def make_default_config() -> str:
         f"  '''{pattern}''',"
         for pattern in REGEX
     ]
-    insert_columns = ", ".join(f'"{column}"' for column in INSERT_COLUMNS)
+    insert_columns = ", ".join(_extract_columns_from_sql(COLUMNS))
 
     return "\n".join(
         [
