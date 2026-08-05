@@ -27,9 +27,10 @@ def _show_progress(current: int, total: int | None) -> None:
 
 def _inject_default_columns(columns_sql: str) -> str:
     """Inject line_no (PK) and raw_line into SQL definition."""
+    columns = columns_sql.strip().rstrip(',')
     return f"""
     line_no       BIGINT PRIMARY KEY,
-    {columns_sql.strip()},
+    {columns},
     raw_line      TEXT NOT NULL,
     """
 
@@ -87,16 +88,11 @@ def insert_rows(
     records: Iterable[Sequence[Any]],
     total_rows: int | None = None,
 ) -> int:
-    """Stream records to CSV, then bulk-load them with DuckDB COPY.
+    """Stream records to CSV, then bulk-load them with DuckDB COPY."""
+    def ensure_quoted(name: str) -> str:
+        return name if name.startswith('"') else _quote_identifier(name)
 
-    Auto-injects line_no and raw_line columns if not in the provided columns list.
-    """
-    # Auto-inject line_no and raw_line if not present
-    full_columns = columns
-    if '"line_no"' not in columns and 'line_no' not in columns:
-        full_columns = ['"line_no"'] + list(columns) + ['"raw_line"']
-
-    quoted_columns = ", ".join(_quote_identifier(name) for name in full_columns)
+    quoted_columns = ", ".join(ensure_quoted(name) for name in columns)
 
     file_descriptor, csv_path = tempfile.mkstemp(suffix=".csv")
     os.close(file_descriptor)
