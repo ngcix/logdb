@@ -19,27 +19,10 @@ def extract_columns_from_sql(columns_sql: str) -> list[str]:
     return columns
 
 
-def _load_dumpstate_default() -> str:
-    from logdb.core.dumpstate.config import make_default_config
-
-    return make_default_config()
-
-
-def _load_pcap_default() -> str:
-    from logdb.core.pcap.config import make_default_config
-
-    return make_default_config()
-
-def _load_hci_default() -> str:
-    from logdb.core.hci.config import make_default_config
-
-    return make_default_config()
-
-
 DEFAULT_CONFIG_LOADERS: dict[str, Callable[[], str]] = {
-    "dumpstate": _load_dumpstate_default,
-    "pcap": _load_pcap_default,
-    "hci": _load_hci_default
+    "dumpstate": lambda: __import__("logdb.core.dumpstate.config", fromlist=["make_default_config"]).make_default_config(),
+    "pcap": lambda: __import__("logdb.core.pcap.config", fromlist=["make_default_config"]).make_default_config(),
+    "hci": lambda: __import__("logdb.core.hci.config", fromlist=["make_default_config"]).make_default_config(),
 }
 
 
