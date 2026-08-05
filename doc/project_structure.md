@@ -119,3 +119,8 @@ logdb query <database> <sql> [-r <rows>]
 - `database` — Path to the DuckDB database
 - `sql` — Read-only SQL query
 - `-r, --rows` — Maximum rows to print (default: 100)
+
+# Implement
+- search by timestamp: 07-28 10:30:45.123
+- show short result (reduce token)
+- show long result

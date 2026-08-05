@@ -26,12 +26,18 @@ def register(parser: argparse.ArgumentParser):
         required=True,
         help="Path to the output DuckDB database",
     )
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Drop and recreate table if it already exists",
+    )
     parser.set_defaults(func=run)
 
 
 def run(args: argparse.Namespace) -> int:
     try:
-        return db_make(args.type, args.input, args.output)
+        return db_make(args.type, args.input, args.output, force=args.force)
     except FileExistsError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

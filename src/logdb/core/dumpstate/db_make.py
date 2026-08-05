@@ -3,7 +3,7 @@ from logdb.database import connect_database, create_table, insert_rows
 from logdb.config import load_config, extract_columns_from_sql
 
 
-def db_make(input_path: str, output_path: str) -> int:
+def db_make(input_path: str, output_path: str, force: bool = False) -> int:
     config = load_config("dumpstate", output_path)
     table = config["table"]
     insert_columns = extract_columns_from_sql(table["columns_sql"])
@@ -17,6 +17,8 @@ def db_make(input_path: str, output_path: str) -> int:
 
     connection = connect_database(output_path)
     try:
+        if force:
+            connection.execute(f"DROP TABLE IF EXISTS {table['name']}")
         create_table(
             connection,
             table["name"],
