@@ -7,6 +7,8 @@ import csv
 import os
 import tempfile
 
+from logdb.database.query import _quote_identifier
+
 class _ProgressBar:
     """Small stderr progress bar with no third-party dependency."""
 
@@ -58,8 +60,6 @@ def create_table(
         f"CREATE TABLE {_quote_identifier(table_name)} ({definition})"
     )
 
-def _quote_identifier(identifier: str) -> str:
-    return '"' + identifier.replace('"', '""') + '"'
 
 def _table_exists(
     connection: duckdb.DuckDBPyConnection,

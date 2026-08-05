@@ -30,10 +30,16 @@ def _load_pcap_default() -> str:
 
     return make_default_config()
 
+def _load_hci_default() -> str:
+    from logdb.core.hci.config import make_default_config
+
+    return make_default_config()
+
 
 DEFAULT_CONFIG_LOADERS: dict[str, Callable[[], str]] = {
     "dumpstate": _load_dumpstate_default,
     "pcap": _load_pcap_default,
+    "hci": _load_hci_default
 }
 
 

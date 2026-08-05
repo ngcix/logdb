@@ -2,13 +2,15 @@ from collections.abc import Iterator, Mapping, Sequence
 import re
 from typing import Any
 
+from logdb.config import extract_columns_from_sql
+
 
 def preprocess(
     log_path: str,
     config: Mapping[str, Any],
 ) -> Iterator[dict[str, object]]:
     """Yield one parsed record mapping for every input line."""
-    columns = config["insert"]["columns"]
+    columns = extract_columns_from_sql(config["table"]["columns_sql"])
     patterns = [re.compile(pattern) for pattern in config["filter"]["regex"]]
 
     with open(log_path, encoding="utf-8", errors="replace") as log_file:
