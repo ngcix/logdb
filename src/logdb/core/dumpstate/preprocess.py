@@ -20,9 +20,7 @@ def preprocess(
 
             record = {column: None for column in columns}
             record.update(fields or {})
-            record["line_no"] = line_no
             record["ts_order"] = line_no
-            record["raw_line"] = text
 
             if fields is None:
                 record["tag"] = "stdout"

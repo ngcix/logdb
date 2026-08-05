@@ -1,6 +1,5 @@
 
 COLUMNS = """
-    line_no       BIGINT PRIMARY KEY,
     log_date      VARCHAR,
     log_time      VARCHAR,
     ts_order      BIGINT NOT NULL,
@@ -10,7 +9,6 @@ COLUMNS = """
     tid           VARCHAR,
     tag           VARCHAR NOT NULL,
     message       TEXT NOT NULL,
-    raw_line      TEXT NOT NULL,
 """
 
 REGEX = [

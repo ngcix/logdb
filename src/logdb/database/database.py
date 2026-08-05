@@ -25,6 +25,15 @@ def _show_progress(current: int, total: int | None) -> None:
     print(f"\r{message}", end="", file=sys.stderr, flush=True)
 
 
+def _inject_default_columns(columns_sql: str) -> str:
+    """Inject line_no (PK) and raw_line into SQL definition."""
+    return f"""
+    line_no       BIGINT PRIMARY KEY,
+    {columns_sql.strip()},
+    raw_line      TEXT NOT NULL,
+    """
+
+
 def connect_database(database_path: str) -> duckdb.DuckDBPyConnection:
     """Open a DuckDB database, creating it when the file does not exist."""
     return duckdb.connect(database_path)
@@ -35,11 +44,14 @@ def create_table(
     table_name: str,
     columns: Mapping[str, str] | str,
 ) -> None:
-    """Create a table from a column mapping or SQL column definition."""
+    """Create a table from a column mapping or SQL column definition.
+
+    Auto-injects line_no (PRIMARY KEY) and raw_line columns if not present.
+    """
     if _table_exists(connection, table_name):
         raise FileExistsError(f"Table already exists: {table_name}")
     if isinstance(columns, str):
-        definition = columns
+        definition = _inject_default_columns(columns)
     else:
         definition = ", ".join(
             f"{_quote_identifier(name)} {data_type}"
@@ -75,8 +87,16 @@ def insert_rows(
     records: Iterable[Sequence[Any]],
     total_rows: int | None = None,
 ) -> int:
-    """Stream records to CSV, then bulk-load them with DuckDB COPY."""
-    quoted_columns = ", ".join(_quote_identifier(name) for name in columns)
+    """Stream records to CSV, then bulk-load them with DuckDB COPY.
+
+    Auto-injects line_no and raw_line columns if not in the provided columns list.
+    """
+    # Auto-inject line_no and raw_line if not present
+    full_columns = columns
+    if '"line_no"' not in columns and 'line_no' not in columns:
+        full_columns = ['"line_no"'] + list(columns) + ['"raw_line"']
+
+    quoted_columns = ", ".join(_quote_identifier(name) for name in full_columns)
 
     file_descriptor, csv_path = tempfile.mkstemp(suffix=".csv")
     os.close(file_descriptor)
@@ -114,6 +134,9 @@ def insert_rows(
                 "QUOTE '\"', ESCAPE '\"', DELIMITER ',', NEW_LINE '\\n')",
                 [csv_path, _CSV_NULL],
             )
+        else:
+            # Mark that no rows were inserted (table created but empty)
+            pass
 
         return inserted
     finally:

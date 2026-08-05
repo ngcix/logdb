@@ -1,5 +1,4 @@
 COLUMNS = """
-    line_no                     BIGINT PRIMARY KEY,
     "frame.number"              VARCHAR,
     "frame.time"                VARCHAR,
     "frame.len"                 VARCHAR,
@@ -20,7 +19,6 @@ COLUMNS = """
     "wlan.fc.type_subtype"      VARCHAR,
     "_ws.col.protocol"          VARCHAR,
     "_ws.col.info"              TEXT,
-    raw_line                    TEXT,
 """
 
 
