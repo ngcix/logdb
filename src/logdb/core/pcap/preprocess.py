@@ -1,6 +1,7 @@
 from collections.abc import Iterator, Mapping
 import subprocess
 from typing import Any
+from logdb.config import extract_columns_from_sql
 
 
 def preprocess(
@@ -9,15 +10,16 @@ def preprocess(
 ) -> Iterator[dict[str, object]]:
     """Stream packets from PCAP file using tshark subprocess.
 
-    Yields one record per packet with tshark fields mapped to column names.
+    Yields one record per packet with tshark fields as column names.
     """
-    tshark_fields = config["insert"]["fields"]
-    field_mapping = config.get("field_mapping", {})
-    columns = config["insert"]["columns"]
+    columns_sql = config["table"]["columns_sql"]
+    columns = extract_columns_from_sql(columns_sql)
+    # Remove 'line_no' and 'raw_line' from the tshark fields (they're added separately)
+    tshark_fields = [col.strip('"') for col in columns if col.strip('"') not in ("line_no", "raw_line")]
 
     cmd = ["tshark", "-r", log_path, "-T", "fields", "-E", "separator=|"]
     for field in tshark_fields:
-        cmd.extend(["-e", field]) 
+        cmd.extend(["-e", field])
 
     try:
         with subprocess.Popen(
@@ -30,13 +32,12 @@ def preprocess(
                 text = raw_line.rstrip("\r\n")
                 values = text.split("|")
 
-                record = {column: None for column in columns}
+                record = {col.strip('"'): None for col in columns}
                 record["line_no"] = line_no
                 record["raw_line"] = text
 
-                for tshark_field, value in zip(tshark_fields, values):
-                    column_name = field_mapping.get(tshark_field, tshark_field)
-                    record[column_name] = value if value else None
+                for field, value in zip(tshark_fields, values):
+                    record[field] = value if value else None
 
                 yield record
 

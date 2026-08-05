@@ -88,9 +88,3 @@ def _validate_config(config: dict[str, Any], log_type: str) -> None:
             if not regex_columns.issubset(unquoted_columns):
                 raise ValueError("Every named regex group must exist in table columns")
 
-    elif log_type == "pcap":
-        fields = config.get("insert", {}).get("fields")
-        if not isinstance(fields, list) or not all(
-            isinstance(field, str) for field in fields
-        ):
-            raise ValueError("Config must define insert.fields as a list of tshark fields")
