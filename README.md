@@ -17,50 +17,23 @@ input log → type-specific parser → DuckDB table → generic query CLI
 - ✅ `config`: manage log type configurations
 - ✅ All log types (dumpstate, pcap, hci) implemented
 
-## Installation for AI Providers
+## Install
 
-### For Users: Install Module + Skills
-
-Copy this prompt into your AI provider to install logdb and enable the two skills:
-
-```
-Install logdb module and skills for log analysis:
-
-**Module Installation:**
-- Install Python package: https://github.sec.samsung.net/cuong-nguyen/logdb/releases/download/release/logdb-1.0.0-py3-none-any.whl
-- Or from source: pip install git+https://github.sec.samsung.net/cuong-nguyen/logdb.git
-
-**Skill 1: logdb-make** (Database Creation & Config)
-- Purpose: Create databases from log files, manage configurations
-- Location: .claude/skills/logdb-make/SKILL.md
-- Skill file: https://github.sec.samsung.net/cuong-nguyen/logdb/blob/main/.claude/skills/logdb-make/SKILL.md
-- Commands: make, config init, config open
-
-**Skill 2: logdb-query** (Search & Analysis)
-- Purpose: Search, navigate, and analyze logs in databases
-- Location: .claude/skills/logdb-query/SKILL.md
-- Skill file: https://github.sec.samsung.net/cuong-nguyen/logdb/blob/main/.claude/skills/logdb-query/SKILL.md
-- Commands: inspect, search, next, previous, query
-
-**Setup:**
-1. Install the Python package (pip or wheel)
-2. Add both skill files to your AI provider's skill directory:
-   - For Claude Code: Add to .claude/skills/ directory in your project
-   - For other providers: Check your provider's skill location (may vary)
-3. Run: `logdb config init` to generate default configs in ~/.logdb/config/
-
-**Quick Test:**
 ```bash
-logdb config init
-logdb config open -t dumpstate
-logdb make -i sample.log -t dumpstate -o test.duckdb
-logdb inspect test.duckdb
-logdb search test.duckdb -t dumpstate -c tag ERROR -r 10
-```
+pip install https://github.sec.samsung.net/cuong-nguyen/logdb/releases/download/release/logdb-1.0.0-py3-none-any.whl
+python -m logdb config init
 ```
 
+`config init` writes one config per log type to `~/.logdb/config/` and prints
+the path. Invoke the tool as `python -m logdb` so it works regardless of
+whether pip's scripts directory is on `PATH`.
 
+Two usage guides live in [`skills/`](skills/) — `logdb-make` (create databases,
+manage configs) and `logdb-query` (search and analyze). Copy them into whatever
+directory your coding agent loads guide files from, keeping each named
+`SKILL.md` inside its own folder. They also read fine as plain reference.
 
+For a full copy-paste setup prompt, see [SETUP_PROMPT.txt](SETUP_PROMPT.txt).
 
 
 ## Install dev
@@ -80,33 +53,37 @@ python -m pip install -e ".[dev]"
 ## Create a database
 
 ```bash
-logdb make \
+python -m logdb make \
   --input path/to/dumpstate.log \
   --type dumpstate \
   --output case.duckdb
 ```
 
-The first command creates a sidecar configuration file beside the database:
+Configuration is read from `~/.logdb/config/<type>.toml`, shared by every
+database of that type, and created with defaults on first use. It holds the
+table schema and — for dumpstate — the ordered parsing regexes:
 
-```text
-case.duckdb
-case.dumpstate.toml
+```bash
+python -m logdb config open -t dumpstate     # edit schema or regexes
+python -m logdb make -i log.txt -t dumpstate -o case.duckdb --force
 ```
 
-The sidecar config contains the dumpstate table schema, insertion columns, and
-ordered parsing regexes. Edit it before a subsequent import to customize the
-parser. Existing tables are not overwritten.
+Existing tables are not overwritten unless `--force` is passed, which drops and
+rebuilds the table.
 
 ## Query a database
 
 ```bash
-logdb query case.duckdb \
+python -m logdb search case.duckdb -t dumpstate -c level E --from 1000 -r 50
+python -m logdb next case.duckdb -t dumpstate -l 2523 -r 20
+python -m logdb previous case.duckdb -t dumpstate -l 2523 -r 20
+python -m logdb query case.duckdb \
   'SELECT line_no, tag, message FROM dumpstate ORDER BY line_no' \
   --rows 50
 ```
 
-`query` opens the database read-only and prints tab-separated rows to standard
-output. Use `--rows` to bound output for terminal and AI-agent workflows.
+All read commands open the database read-only and print JSON with `columns`,
+`rows`, `row_count`, and `truncated`. Use `--rows` to bound output.
 
 ## Dumpstate records
 

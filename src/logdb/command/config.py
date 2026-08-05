@@ -47,7 +47,7 @@ def run_init(args: argparse.Namespace) -> int:
             config_path = config_dir / f"{log_type}.toml"
             default_config = DEFAULT_CONFIG_LOADERS[log_type]()
             config_path.write_text(default_config, encoding="utf-8")
-            print(f"✓ Generated: {config_path}")
+            print(f"Generated: {config_path}")
         except KeyError:
             print(f"error: Unknown log type: {log_type}", file=sys.stderr)
             return 1

@@ -10,27 +10,26 @@ Initialize and manage DuckDB databases from diagnostic log files with automatic 
 
 ## Setup — Resolve the Tool
 
-Set `$LOGDB` environment variable once per session, then reuse for all commands:
+Set `$LOGDB` once per session, then reuse it for every command:
 
 ```bash
-# Preferred: Installed executable on PATH (Nuitka binary or pip install)
-export LOGDB=logdb
+# Default: works for any pip install, PATH or not, venv or not
+export LOGDB="python -m logdb"
 
-# Or: Local binary in checkout (after `make build`)
+# Or: standalone binary from `make build`
 # export LOGDB=./dist/__main__        # Windows: ./dist/__main__.exe
-
-# Or: Last resort — run from source
-# export LOGDB="python -m logdb"
 ```
 
-**Priority order** (if `$LOGDB` not set): `logdb` on PATH → `./dist/__main__` (or `.exe`) → `python -m logdb`
+**Priority order** (if `$LOGDB` not set): `python -m logdb` → `logdb` on PATH → `./dist/__main__` (or `.exe`)
+
+Verify before use: `$LOGDB --help`
 
 ## Quick Start
 
 ### 1. Create Database from Log File
 
 ```bash
-"$LOGDB" make -i path/to/dumpstate.log -t dumpstate -o case.duckdb
+$LOGDB make -i path/to/dumpstate.log -t dumpstate -o case.duckdb
 ```
 
 Creates:
@@ -47,7 +46,7 @@ Creates:
 If the database already exists, use `--force` to drop the old table and reimport:
 
 ```bash
-"$LOGDB" make -i updated.log -t dumpstate -o case.duckdb --force
+$LOGDB make -i updated.log -t dumpstate -o case.duckdb --force
 ```
 
 This allows re-importing with updated config without deleting the .duckdb file.
@@ -62,7 +61,7 @@ LogDB stores config files centrally at `~/.logdb/config/`:
 #### Initialize All Configs
 
 ```bash
-"$LOGDB" config init
+$LOGDB config init
 ```
 
 Output:
@@ -77,7 +76,7 @@ Config files saved to: ~/.logdb/config
 #### Regenerate Specific Config
 
 ```bash
-"$LOGDB" config init -t pcap
+$LOGDB config init -t pcap
 ```
 
 This overwrites the pcap config with defaults. Useful if config is corrupted or needs reset.
@@ -87,7 +86,7 @@ This overwrites the pcap config with defaults. Useful if config is corrupted or 
 Open config in your default editor (registered for .toml files):
 
 ```bash
-"$LOGDB" config open -t dumpstate
+$LOGDB config open -t dumpstate
 ```
 
 On Windows, this uses your configured TOML editor (VS Code, Notepad++, etc.).
@@ -122,9 +121,9 @@ regex = [
 ```
 
 To customize:
-1. Run `logdb config open -t dumpstate`
+1. Run `$LOGDB config open -t dumpstate`
 2. Edit regex patterns to match your log format
-3. Re-run `logdb make ... --force` to reimport with new config
+3. Re-run `$LOGDB make ... --force` to reimport with new config
 
 ### PCAP Config
 
@@ -142,9 +141,9 @@ columns_sql = """
 ```
 
 To add more fields:
-1. Run `logdb config open -t pcap`
+1. Run `$LOGDB config open -t pcap`
 2. Add tshark field names to `columns_sql`
-3. Re-run `logdb make ... --force`
+3. Re-run `$LOGDB make ... --force`
 
 Available fields: Any tshark field name. Common ones:
 - Frame: `frame.number`, `frame.time`, `frame.len`
@@ -178,7 +177,7 @@ columns_sql = """
 - `data.event_name` → Human-readable event name
 - `data.parameters` → Full parameters object (as JSON)
 
-To add more fields, use dotted notation in config and re-run `logdb make ... --force`.
+To add more fields, use dotted notation in config and re-run `$LOGDB make ... --force`.
 
 ## Output Format
 
@@ -205,35 +204,35 @@ Execution time: 0:00:42.123456
 
 ```bash
 # Create fresh database
-"$LOGDB" make -i android_dump.log -t dumpstate -o case_001.duckdb
+$LOGDB make -i android_dump.log -t dumpstate -o case_001.duckdb
 
 # View which tables were created
-"$LOGDB" inspect case_001.duckdb
+$LOGDB inspect case_001.duckdb
 ```
 
 ### Re-import with Custom Config
 
 ```bash
 # Edit config
-"$LOGDB" config open -t dumpstate
+$LOGDB config open -t dumpstate
 
 # Re-run with updated parsing rules
-"$LOGDB" make -i android_dump.log -t dumpstate -o case_001.duckdb --force
+$LOGDB make -i android_dump.log -t dumpstate -o case_001.duckdb --force
 
 # Verify schema updated
-"$LOGDB" inspect case_001.duckdb
+$LOGDB inspect case_001.duckdb
 ```
 
 ### Set Up Multiple Log Types
 
 ```bash
 # Initialize all configs at once
-"$LOGDB" config init
+$LOGDB config init
 
 # Create databases from different log types
-"$LOGDB" make -i dumpstate.log -t dumpstate -o case.duckdb
-"$LOGDB" make -i capture.pcap -t pcap -o case.duckdb
-"$LOGDB" make -i bt_snooz.cfa -t hci -o case.duckdb
+$LOGDB make -i dumpstate.log -t dumpstate -o case.duckdb
+$LOGDB make -i capture.pcap -t pcap -o case.duckdb
+$LOGDB make -i bt_snooz.cfa -t hci -o case.duckdb
 
 # All share centralized configs from ~/.logdb/config/
 ```

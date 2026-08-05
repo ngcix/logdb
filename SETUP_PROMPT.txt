@@ -1,102 +1,95 @@
 ==============================================================================
-LOGDB INSTALLATION PROMPT FOR AI PROVIDERS
-Copy and paste this into your AI provider to set up logdb module and skills
+LOGDB SETUP PROMPT
+Paste this whole block into your coding agent, or follow it by hand.
 ==============================================================================
 
-Install logdb - A fast diagnostic log analyzer powered by DuckDB
+Please set up logdb for me — a CLI that imports large diagnostic logs
+(dumpstate, pcap, hci) into DuckDB so they can be searched in milliseconds.
 
-## What You're Installing
+------------------------------------------------------------------------------
+STEP 1 — Install the module
+------------------------------------------------------------------------------
 
-- **logdb module**: Python CLI tool that imports logs (dumpstate, pcap, hci) into DuckDB for fast analysis
-- **logdb-make skill**: Database creation and config management
-- **logdb-query skill**: Log search, navigation, and analysis
-
-## Installation Instructions
-
-### 1. Install Python Module
-
-Run this command in your terminal:
-
-```
 pip install https://github.sec.samsung.net/cuong-nguyen/logdb/releases/download/release/logdb-1.0.0-py3-none-any.whl
-```
 
 Or from source:
-```
+
 pip install git+https://github.sec.samsung.net/cuong-nguyen/logdb.git
-```
 
-### 2. Initialize Configuration
+Always invoke it as a module — this works whether or not pip's scripts
+directory is on PATH, and inside virtualenvs:
 
-```
-logdb config init
-```
+python -m logdb --help
 
-This creates configuration directory at `~/.logdb/config/` with defaults for all log types.
+------------------------------------------------------------------------------
+STEP 2 — Generate the default configs
+------------------------------------------------------------------------------
 
-### 3. Add Skills to Your AI Provider
+python -m logdb config init
 
-**For Claude Code (VSCode):**
-- Create `.claude/skills/logdb-make/` and `.claude/skills/logdb-query/` directories in your project
-- Download these files:
-  - https://github.sec.samsung.net/cuong-nguyen/logdb/blob/main/.claude/skills/logdb-make/SKILL.md
-  - https://github.sec.samsung.net/cuong-nguyen/logdb/blob/main/.claude/skills/logdb-query/SKILL.md
-- Save each as `SKILL.md` in the respective directory
+This writes one config per log type to ~/.logdb/config/ and prints the path:
 
-**For Claude.ai (Web):**
-- Copy skill content from the URLs above
-- Add to your personal skill library (if available)
+  ~/.logdb/config/dumpstate.toml
+  ~/.logdb/config/pcap.toml
+  ~/.logdb/config/hci.toml
 
-**For Other Providers:**
-- Check your provider's skill/tool documentation
-- Skills may not be supported (use CLI directly instead)
+Configs are shared by every database of that type, so parsing rules and
+column lists are edited in exactly one place:
 
-### 4. Verify Setup
+python -m logdb config open -t dumpstate
 
-```
-logdb config init
-logdb --help
-ls ~/.logdb/config/
-```
+------------------------------------------------------------------------------
+STEP 3 — Add the two usage guides
+------------------------------------------------------------------------------
 
-## Usage Examples
+logdb ships two guide files. Download both and place them wherever this
+tool loads its instruction/guide files from — the directory name differs
+between tools, so use whatever location applies here:
 
-**Create database from log:**
-```
-logdb make -i dumpstate.log -t dumpstate -o case.duckdb
-```
+  logdb-make   — create databases, manage configs
+  https://github.sec.samsung.net/cuong-nguyen/logdb/raw/main/skills/logdb-make/SKILL.md
 
-**Search logs:**
-```
-logdb search case.duckdb -t dumpstate -c tag ERROR -r 50
-```
+  logdb-query  — search, navigate, and analyze imported logs
+  https://github.sec.samsung.net/cuong-nguyen/logdb/raw/main/skills/logdb-query/SKILL.md
 
-**Edit configuration:**
-```
-logdb config open -t dumpstate
-```
+Keep each file named SKILL.md inside its own folder (logdb-make/,
+logdb-query/). If this tool has no such directory, just read the two files
+as reference — every command they document works from the terminal.
 
-**Navigate logs:**
-```
-logdb next case.duckdb -t dumpstate -l 1000 -r 20
-logdb previous case.duckdb -t dumpstate -l 1000 -r 20
-```
+------------------------------------------------------------------------------
+STEP 4 — Verify
+------------------------------------------------------------------------------
 
-## What's Different About Skills Location
+python -m logdb --help
+python -m logdb config init
+python -m logdb make -i <your-log-file> -t dumpstate -o case.duckdb
+python -m logdb inspect case.duckdb
 
-- **Claude Code**: Skills auto-discovered from `.claude/skills/` in your project
-- **Claude.ai**: Skills in personal library (if supported by your plan)
-- **Anthropic API**: Use logdb CLI directly via subprocess/MCP
-- **Other providers**: Check their documentation for tool/skill integration
+------------------------------------------------------------------------------
+COMMAND REFERENCE
+------------------------------------------------------------------------------
 
-The skill files contain usage guides and command references - they can be read even if your provider doesn't formally support skills.
+Create / configure
+  python -m logdb make -i LOG -t {dumpstate|pcap|hci} -o DB [--force]
+  python -m logdb config init [-t TYPE]
+  python -m logdb config open -t TYPE
 
-## Need Help?
+Search / analyze  (all output JSON)
+  python -m logdb inspect DB
+  python -m logdb search DB -t TABLE -c COLUMN REGEX [--from N] [--to N] [-r N]
+  python -m logdb next DB -t TABLE -l LINE [-c COLUMN REGEX] [-r N]
+  python -m logdb previous DB -t TABLE -l LINE [-c COLUMN REGEX] [-r N]
+  python -m logdb query DB "SELECT ..." [-r N]
 
-- Read INSTALL.md for detailed instructions
-- Run `logdb --help` for command reference
-- Read skill files for examples: .claude/skills/logdb-make/SKILL.md, logdb-query/SKILL.md
+Examples
+  python -m logdb make -i dumpstate.log -t dumpstate -o case.duckdb
+  python -m logdb search case.duckdb -t dumpstate -c level E -r 50
+  python -m logdb previous case.duckdb -t dumpstate -l 2523 -r 10
+  python -m logdb query case.duckdb "SELECT line_no, tag, message FROM dumpstate WHERE tag LIKE '%Bluetooth%'"
 
-==============================================================================
-That's it! You're ready to analyze logs with logdb.
+Notes
+  - Every table gets line_no (primary key) and raw_line automatically.
+  - --force drops and rebuilds the table, for re-importing after a config edit.
+  - pcap requires tshark on PATH (install Wireshark).
+
 ==============================================================================
