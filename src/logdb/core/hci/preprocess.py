@@ -3,7 +3,7 @@ import json
 from typing import Any
 
 from logdb.config import extract_columns_from_sql
-from .util.hci_uart_parser import HCIUartParser
+from logdb.core.hci.util.hci_uart_parser import HCIUartParser
 
 
 def _get_nested(obj: Any, path: str) -> Any:

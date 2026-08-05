@@ -6,7 +6,6 @@ COLUMNS = """
     "data.event_code" VARCHAR,
     "data.event_name" VARCHAR,
     "data.status"   VARCHAR,
-    data_raw        JSON,
 """
 
 

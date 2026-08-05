@@ -1,12 +1,12 @@
 ---
 name: logdb-query
-description: Query and analyze large diagnostic logs (dumpstate, pcap) efficiently with DuckDB. Use when importing Android logs, searching patterns, navigating log context, or extracting evidence for RCA.
+description: Query and search large diagnostic logs in DuckDB databases efficiently. Use when analyzing patterns, navigating context, extracting evidence, or running complex queries for RCA.
 version: 1.0.0
 ---
 
-# LogDB — Diagnostic Log Query Tool
+# LogDB — Query & Search Tool
 
-Lightweight CLI to import large Android dumpstate/logcat logs into DuckDB and return structured evidence for AI agents and users.
+Efficient search and analysis of diagnostic logs imported into DuckDB. Works with dumpstate, pcap, and HCI logs.
 
 ## Setup — Resolve the Tool
 
@@ -18,7 +18,6 @@ export LOGDB=logdb
 
 # Or: Local binary in checkout (after `make build`)
 # export LOGDB=./dist/__main__        # Windows: ./dist/__main__.exe
-# export LOGDB=./dist/__main__
 
 # Or: Last resort — run from source
 # export LOGDB="python -m logdb"
@@ -26,25 +25,18 @@ export LOGDB=logdb
 
 Then use it:
 ```bash
-"$LOGDB" make -i input.log -t dumpstate -o case.duckdb
 "$LOGDB" search case.duckdb -t dumpstate -c tag ERROR
+"$LOGDB" next case.duckdb -t dumpstate -l 500 -r 20
+"$LOGDB" query case.duckdb "SELECT * FROM dumpstate WHERE level='E'"
 ```
 
 **Priority order** (if `$LOGDB` not set): `logdb` on PATH → `./dist/__main__` (or `.exe`) → `python -m logdb`
 
 ## Quick Start
 
-### 1. Create Database from Log File
+**Prerequisites:** Database already created using `logdb-make` skill
 
-```bash
-"$LOGDB" make -i path/to/dumpstate.log -t dumpstate -o case.duckdb
-```
-
-Creates:
-- `case.duckdb` — DuckDB database
-- `case.dumpstate.toml` — Configuration with schema and parsing rules (edit before re-import)
-
-### 2. Inspect Database Schema
+### 1. Inspect Database Schema
 
 ```bash
 "$LOGDB" inspect case.duckdb
@@ -52,7 +44,7 @@ Creates:
 
 Output: JSON with table names and column lists.
 
-### 3. Search Records
+### 2. Search Records
 
 #### Basic Search
 ```bash
@@ -75,7 +67,7 @@ Options:
 - Can use `--from` alone or `--to` alone
 - Combines with column filters using AND logic
 
-### 4. Navigate by Line Number
+### 3. Navigate by Line Number
 
 #### Get Next Records (After a Line)
 ```bash
@@ -107,7 +99,7 @@ Options:
 - `-c, --column` — Regex filter (repeatable, AND-combined)
 - `-r, --rows` — Limit output rows (default: 100)
 
-### 5. Raw SQL Queries
+### 4. Raw SQL Queries
 
 ```bash
 "$LOGDB" query case.duckdb "SELECT * FROM dumpstate WHERE tag LIKE '%Activity%' ORDER BY line_no" --rows 50
@@ -136,9 +128,8 @@ Special commands:
 
 | Command | Purpose |
 |---------|---------|
-| `make` | Import log file into DuckDB |
 | `inspect` | List tables and columns in database |
-| `search` | Filter records by columns (regex) |
+| `search` | Filter records by columns (regex) and line ranges |
 | `next` | Get N records after a line (with filters) |
 | `previous` | Get N records before a line (with filters) |
 | `query` | Run raw SQL query |

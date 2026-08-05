@@ -26,8 +26,8 @@ DEFAULT_CONFIG_LOADERS: dict[str, Callable[[], str]] = {
 }
 
 
-def load_config(log_type: str, database_path: str) -> dict[str, Any]:
-    """Load a type-specific sidecar config, creating its default when absent."""
+def load_config(log_type: str, database_path: str = "") -> dict[str, Any]:
+    """Load a type-specific config from ~/.logdb/config/, creating default when absent."""
     try:
         default_config = DEFAULT_CONFIG_LOADERS[log_type]()
     except KeyError as error:
@@ -35,8 +35,9 @@ def load_config(log_type: str, database_path: str) -> dict[str, Any]:
             f"No default config is defined for log type: {log_type}"
         ) from error
 
-    config_path = Path(database_path).with_suffix(f".{log_type}.toml")
-    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_dir = Path.home() / ".logdb" / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_path = config_dir / f"{log_type}.toml"
 
     if not config_path.exists():
         config_path.write_text(default_config, encoding="utf-8")

@@ -2,7 +2,7 @@ import argparse
 import time
 from datetime import timedelta
 
-from logdb.command import inspect, make, next, previous, query, search
+from logdb.command import config, inspect, make, next, previous, query, search
 
 PROGRAM_NAME = "logdb"
 
@@ -46,6 +46,12 @@ def parser_builder() -> argparse.ArgumentParser:
         help="List tables in a database",
     )
     inspect.register(inspect_parser)
+
+    config_parser = commands.add_parser(
+        "config",
+        help="Manage log type configurations",
+    )
+    config.register(config_parser)
 
     return parser
 
