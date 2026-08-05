@@ -7,7 +7,6 @@ def db_make(input_path: str, output_path: str) -> int:
     config = load_config("dumpstate", output_path)
     table = config["table"]
     insert_columns = extract_columns_from_sql(table["columns_sql"])
-    total_rows = _count_lines(input_path)
 
     records = (
         tuple(record.get(column) for column in insert_columns)
@@ -27,12 +26,7 @@ def db_make(input_path: str, output_path: str) -> int:
             table["name"],
             insert_columns,
             records,
-            total_rows=total_rows,
         )
     finally:
         connection.close()
     return 0
-
-def _count_lines(input_path: str) -> int:
-    with open(input_path, "rb") as log_file:
-        return sum(1 for _ in log_file)

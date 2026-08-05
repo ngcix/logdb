@@ -71,23 +71,14 @@ def _validate_config(config: dict[str, Any], log_type: str) -> None:
 
     table = config.get("table", {})
     columns_sql = table.get("columns_sql")
-
-    if not isinstance(table.get("name"), str):
-        raise ValueError("Config must define table.name")
-    if not isinstance(columns_sql, str):
-        raise ValueError("Config must define table.columns_sql")
-
-    # Extract column names from SQL definition
     insert_columns = extract_columns_from_sql(columns_sql)
 
     if log_type == "dumpstate":
-        patterns = config.get("filter", {}).get("regex")
-        if not isinstance(patterns, list) or not all(
-            isinstance(pattern, str) for pattern in patterns
-        ):
-            raise ValueError("Config must define filter.regex as a list of patterns")
+        patterns = config.get("filter", {}).get("regex", [])
+        if not patterns:
+            raise ValueError("Config must define filter.regex")
 
-        # Extract unquoted column names for regex matching
+        # Validate that regex groups match column names
         unquoted_columns = [col.strip('"') for col in insert_columns]
         for pattern in patterns:
             regex_columns = set(re.compile(pattern).groupindex)
