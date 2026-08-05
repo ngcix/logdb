@@ -1,0 +1,102 @@
+==============================================================================
+LOGDB INSTALLATION PROMPT FOR AI PROVIDERS
+Copy and paste this into your AI provider to set up logdb module and skills
+==============================================================================
+
+Install logdb - A fast diagnostic log analyzer powered by DuckDB
+
+## What You're Installing
+
+- **logdb module**: Python CLI tool that imports logs (dumpstate, pcap, hci) into DuckDB for fast analysis
+- **logdb-make skill**: Database creation and config management
+- **logdb-query skill**: Log search, navigation, and analysis
+
+## Installation Instructions
+
+### 1. Install Python Module
+
+Run this command in your terminal:
+
+```
+pip install https://github.sec.samsung.net/cuong-nguyen/logdb/releases/download/release/logdb-1.0.0-py3-none-any.whl
+```
+
+Or from source:
+```
+pip install git+https://github.sec.samsung.net/cuong-nguyen/logdb.git
+```
+
+### 2. Initialize Configuration
+
+```
+logdb config init
+```
+
+This creates configuration directory at `~/.logdb/config/` with defaults for all log types.
+
+### 3. Add Skills to Your AI Provider
+
+**For Claude Code (VSCode):**
+- Create `.claude/skills/logdb-make/` and `.claude/skills/logdb-query/` directories in your project
+- Download these files:
+  - https://github.sec.samsung.net/cuong-nguyen/logdb/blob/main/.claude/skills/logdb-make/SKILL.md
+  - https://github.sec.samsung.net/cuong-nguyen/logdb/blob/main/.claude/skills/logdb-query/SKILL.md
+- Save each as `SKILL.md` in the respective directory
+
+**For Claude.ai (Web):**
+- Copy skill content from the URLs above
+- Add to your personal skill library (if available)
+
+**For Other Providers:**
+- Check your provider's skill/tool documentation
+- Skills may not be supported (use CLI directly instead)
+
+### 4. Verify Setup
+
+```
+logdb config init
+logdb --help
+ls ~/.logdb/config/
+```
+
+## Usage Examples
+
+**Create database from log:**
+```
+logdb make -i dumpstate.log -t dumpstate -o case.duckdb
+```
+
+**Search logs:**
+```
+logdb search case.duckdb -t dumpstate -c tag ERROR -r 50
+```
+
+**Edit configuration:**
+```
+logdb config open -t dumpstate
+```
+
+**Navigate logs:**
+```
+logdb next case.duckdb -t dumpstate -l 1000 -r 20
+logdb previous case.duckdb -t dumpstate -l 1000 -r 20
+```
+
+## What's Different About Skills Location
+
+- **Claude Code**: Skills auto-discovered from `.claude/skills/` in your project
+- **Claude.ai**: Skills in personal library (if supported by your plan)
+- **Anthropic API**: Use logdb CLI directly via subprocess/MCP
+- **Other providers**: Check their documentation for tool/skill integration
+
+The skill files contain usage guides and command references - they can be read even if your provider doesn't formally support skills.
+
+## Need Help?
+
+- Read INSTALL.md for detailed instructions
+- Run `logdb --help` for command reference
+- Read skill files for examples: .claude/skills/logdb-make/SKILL.md, logdb-query/SKILL.md
+
+==============================================================================
+That's it! You're ready to analyze logs with logdb.
+==============================================================================
