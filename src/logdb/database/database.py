@@ -9,30 +9,20 @@ import tempfile
 
 from logdb.database.query import _quote_identifier
 
-class _ProgressBar:
-    """Small stderr progress bar with no third-party dependency."""
 
-    def __init__(self, total: int | None) -> None:
-        self.total = total
+def _show_progress(current: int, total: int | None) -> None:
+    """Display progress to stderr without third-party dependencies."""
+    if total is None:
+        message = f"Imported {current:,} rows"
+    elif total == 0:
+        message = "Imported 0 rows"
+    else:
+        percent = min(current / total, 1)
+        filled = int(percent * 30)
+        bar = "#" * filled + "-" * (30 - filled)
+        message = f"[{bar}] {percent:.0%} ({current:,}/{total:,} rows)"
 
-    def update(self, current: int) -> None:
-        if self.total is None:
-            message = f"Imported {current:,} rows"
-        elif self.total == 0:
-            message = "Imported 0 rows"
-        else:
-            percent = min(current / self.total, 1)
-            filled = int(percent * 30)
-            bar = "#" * filled + "-" * (30 - filled)
-            message = (
-                f"[{bar}] {percent:.0%} "
-                f"({current:,}/{self.total:,} rows)"
-            )
-
-        print(f"\r{message}", end="", file=sys.stderr, flush=True)
-
-    def close(self) -> None:
-        print(file=sys.stderr, flush=True)
+    print(f"\r{message}", end="", file=sys.stderr, flush=True)
 
 
 def connect_database(database_path: str) -> duckdb.DuckDBPyConnection:
@@ -91,7 +81,6 @@ def insert_rows(
     file_descriptor, csv_path = tempfile.mkstemp(suffix=".csv")
     os.close(file_descriptor)
 
-    progress = _ProgressBar(total_rows)
     inserted = 0
 
     try:
@@ -103,7 +92,7 @@ def insert_rows(
                 lineterminator="\n",
             )
 
-            progress.update(0)
+            _show_progress(0, total_rows)
 
             for record in records:
                 writer.writerow(
@@ -113,10 +102,11 @@ def insert_rows(
                 inserted += 1
 
                 if inserted % 1_000 == 0:
-                    progress.update(inserted)
+                    _show_progress(inserted, total_rows)
 
         if inserted:
-            progress.update(inserted)
+            _show_progress(inserted, total_rows)
+            print(file=sys.stderr, flush=True)
 
             connection.execute(
                 f"COPY {_quote_identifier(table_name)} ({quoted_columns}) "
@@ -127,8 +117,6 @@ def insert_rows(
 
         return inserted
     finally:
-        progress.close()
-
         try:
             os.unlink(csv_path)
         except OSError:

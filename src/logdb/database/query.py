@@ -58,6 +58,29 @@ def fetch_rows(
     )
 
 
+def _add_filter_conditions(
+    conditions: list[str],
+    parameters: list[Any],
+    filters: Sequence[tuple[str, str]],
+    columns: dict[str, str],
+    table_name: str,
+) -> None:
+    """Add column regex filters to conditions list."""
+    for requested_column, pattern in filters:
+        column_name = columns.get(requested_column.casefold())
+        if column_name is None:
+            raise ValueError(
+                f"Unknown column {requested_column!r} "
+                f"in table {table_name!r}"
+            )
+
+        conditions.append(
+            f"regexp_matches("
+            f"CAST({_quote_identifier(column_name)} AS VARCHAR), ?, 'i')"
+        )
+        parameters.append(pattern)
+
+
 def run_search(
     database_path: str,
     table_name: str,
@@ -86,19 +109,7 @@ def run_search(
                 conditions.append("line_no <= ?")
                 parameters.append(to_line)
 
-        for requested_column, pattern in filters:
-            column_name = columns.get(requested_column.casefold())
-            if column_name is None:
-                raise ValueError(
-                    f"Unknown column {requested_column!r} "
-                    f"in table {table_name!r}"
-                )
-
-            conditions.append(
-                f"regexp_matches("
-                f"CAST({_quote_identifier(column_name)} AS VARCHAR), ?, 'i')"
-            )
-            parameters.append(pattern)
+        _add_filter_conditions(conditions, parameters, filters, columns, table_name)
 
         sql = f"SELECT * FROM {_quote_identifier(table_name)}"
 
@@ -139,13 +150,13 @@ def run_next(
     connection = duckdb.connect(database_path, read_only=True)
 
     try:
-        sql = f"SELECT * FROM {_quote_identifier(table_name)} WHERE line_no > ?"
+        columns = _table_columns(connection, table_name)
+        conditions = ["line_no > ?"]
         parameters: list[Any] = [line_no]
 
-        for column_name, pattern in filters:
-            sql += f" AND regexp_matches(CAST({_quote_identifier(column_name)} AS VARCHAR), ?, 'i')"
-            parameters.append(pattern)
+        _add_filter_conditions(conditions, parameters, filters, columns, table_name)
 
+        sql = f"SELECT * FROM {_quote_identifier(table_name)} WHERE " + " AND ".join(conditions)
         sql += " ORDER BY line_no"
 
         return fetch_rows(connection, sql, parameters, max_rows=max_rows)
@@ -165,13 +176,13 @@ def run_previous(
     connection = duckdb.connect(database_path, read_only=True)
 
     try:
-        sql = f"SELECT * FROM {_quote_identifier(table_name)} WHERE line_no < ?"
+        columns = _table_columns(connection, table_name)
+        conditions = ["line_no < ?"]
         parameters: list[Any] = [line_no]
 
-        for column_name, pattern in filters:
-            sql += f" AND regexp_matches(CAST({_quote_identifier(column_name)} AS VARCHAR), ?, 'i')"
-            parameters.append(pattern)
+        _add_filter_conditions(conditions, parameters, filters, columns, table_name)
 
+        sql = f"SELECT * FROM {_quote_identifier(table_name)} WHERE " + " AND ".join(conditions)
         sql += " ORDER BY line_no DESC"
 
         return fetch_rows(connection, sql, parameters, max_rows=max_rows)

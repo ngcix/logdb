@@ -1,9 +1,7 @@
 import argparse
-import sys
 
-import duckdb
-
-from logdb.database.query import format_json, run_next
+from logdb.database.query import run_next
+from logdb.command._shared import run_query_command
 
 
 def register(parser: argparse.ArgumentParser) -> None:
@@ -23,24 +21,13 @@ def register(parser: argparse.ArgumentParser) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
-    try:
-        result = run_next(
-            args.database,
-            args.table,
-            args.line,
-            args.column,
-            max_rows=args.rows,
-        )
-    except (duckdb.Error, OSError, ValueError) as error:
-        print(f"error: {error}", file=sys.stderr)
-        return 1
-
-    print(format_json(result))
-
-    if result.truncated:
-        print(
-            "output truncated; increase --rows to see more",
-            file=sys.stderr,
-        )
-
-    return 0
+    return run_query_command(
+        lambda a: run_next(
+            a.database,
+            a.table,
+            a.line,
+            a.column,
+            max_rows=a.rows,
+        ),
+        args,
+    )
