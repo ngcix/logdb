@@ -6,9 +6,10 @@ def db_make(input_path: str, output_path: str) -> int:
     config = load_config("pcap", output_path)
     table = config["table"]
     insert_columns = extract_columns_from_sql(table["columns_sql"])
+    insert_columns = ['"line_no"'] + insert_columns + ['"raw_line"']
 
     records = (
-        tuple(record.get(column) for column in insert_columns)
+        tuple(record.get(column.strip('"')) for column in insert_columns)
         for record in preprocess(input_path, config)
     )
     print("Done preprocess")
