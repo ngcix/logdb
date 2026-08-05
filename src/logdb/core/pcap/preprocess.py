@@ -17,7 +17,7 @@ def preprocess(
 
     cmd = ["tshark", "-r", log_path, "-T", "fields", "-E", "separator=|"]
     for field in tshark_fields:
-        cmd.extend(["-e", field])
+        cmd.extend(["-e", field]) 
 
     try:
         with subprocess.Popen(

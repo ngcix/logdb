@@ -27,11 +27,6 @@ columns_sql = """
     raw_line      TEXT NOT NULL
 """
 
-[insert]
-# The list of columns to map the extracted data into the SQL INSERT statement.
-# The names and their order MUST MATCH the columns defined in the [table] section exactly.
-columns = ["line_no", "log_date", "log_time", "level", "module", "message", "raw_line"]
-
 [filter]
 # The list of Regular Expressions used to parse the log lines.
 # The system evaluates each Regex from top to bottom. The first one that matches is applied.

@@ -5,6 +5,20 @@ import re
 import tomllib
 
 
+def extract_columns_from_sql(columns_sql: str) -> list[str]:
+    """Parse SQL column definition and return ordered list of column names (quoted)."""
+    columns = []
+    for line in columns_sql.strip().split(','):
+        line = line.strip()
+        if not line:
+            continue
+        match = re.match(r'^"([^"]+)"|^(\w+)', line)
+        if match:
+            name = match.group(1) or match.group(2)
+            columns.append(f'"{name}"')
+    return columns
+
+
 def _load_dumpstate_default() -> str:
     from logdb.core.dumpstate.config import make_default_config
 
@@ -51,12 +65,14 @@ def _validate_config(config: dict[str, Any], log_type: str) -> None:
 
     table = config.get("table", {})
     columns_sql = table.get("columns_sql")
-    insert_columns = config.get("insert", {}).get("columns")
 
     if not isinstance(table.get("name"), str):
         raise ValueError("Config must define table.name")
-    if not isinstance(columns_sql, str) or not isinstance(insert_columns, list):
-        raise ValueError("Config must define table.columns_sql and insert.columns")
+    if not isinstance(columns_sql, str):
+        raise ValueError("Config must define table.columns_sql")
+
+    # Extract column names from SQL definition
+    insert_columns = extract_columns_from_sql(columns_sql)
 
     if log_type == "dumpstate":
         patterns = config.get("filter", {}).get("regex")
@@ -65,10 +81,12 @@ def _validate_config(config: dict[str, Any], log_type: str) -> None:
         ):
             raise ValueError("Config must define filter.regex as a list of patterns")
 
+        # Extract unquoted column names for regex matching
+        unquoted_columns = [col.strip('"') for col in insert_columns]
         for pattern in patterns:
             regex_columns = set(re.compile(pattern).groupindex)
-            if not regex_columns.issubset(insert_columns):
-                raise ValueError("Every named regex group must exist in insert.columns")
+            if not regex_columns.issubset(unquoted_columns):
+                raise ValueError("Every named regex group must exist in table columns")
 
     elif log_type == "pcap":
         fields = config.get("insert", {}).get("fields")

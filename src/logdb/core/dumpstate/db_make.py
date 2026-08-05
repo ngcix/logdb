@@ -1,12 +1,12 @@
 from logdb.core.dumpstate.preprocess import preprocess
 from logdb.database import connect_database, create_table, insert_rows
-from logdb.config import load_config
+from logdb.config import load_config, extract_columns_from_sql
 
 
 def db_make(input_path: str, output_path: str) -> int:
-    config = load_config("dumpstate", output_path) 
+    config = load_config("dumpstate", output_path)
     table = config["table"]
-    insert_columns = config["insert"]["columns"]
+    insert_columns = extract_columns_from_sql(table["columns_sql"])
     total_rows = _count_lines(input_path)
 
     records = (

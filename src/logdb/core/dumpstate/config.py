@@ -39,28 +39,12 @@ REGEX = [
 ]
 
 
-def _extract_columns_from_sql(columns_sql: str) -> list[str]:
-    """Parse SQL column definition and return ordered list of column names."""
-    import re
-    columns = []
-    for line in columns_sql.strip().split(','):
-        line = line.strip()
-        if not line:
-            continue
-        match = re.match(r'^"([^"]+)"|^(\w+)', line)
-        if match:
-            name = match.group(1) or match.group(2)
-            columns.append(f'"{name}"')
-    return columns
-
-
 def make_default_config() -> str:
     """Return the default dumpstate TOML configuration."""
     regex_lines = [
         f"  '''{pattern}''',"
         for pattern in REGEX
     ]
-    insert_columns = ", ".join(_extract_columns_from_sql(COLUMNS))
 
     return "\n".join(
         [
@@ -72,9 +56,6 @@ def make_default_config() -> str:
             'columns_sql = """',
             COLUMNS.strip(),
             '"""',
-            "",
-            "[insert]",
-            f"columns = [{insert_columns}]",
             "",
             "[filter]",
             "regex = [",
