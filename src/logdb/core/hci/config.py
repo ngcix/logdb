@@ -1,12 +1,12 @@
 COLUMNS = """
-    packet_num    BIGINT NOT NULL,
-    timestamp     VARCHAR,
-    "type"        VARCHAR,
-    direction     VARCHAR,
-    event_code    VARCHAR,
-    event_name    VARCHAR,
-    status        VARCHAR,
-    data          JSON,
+    packet_num      BIGINT NOT NULL,
+    timestamp       VARCHAR,
+    "data.type"     VARCHAR,
+    "data.direction" VARCHAR,
+    "data.event_code" VARCHAR,
+    "data.event_name" VARCHAR,
+    "data.status"   VARCHAR,
+    data_raw        JSON,
 """
 
 
