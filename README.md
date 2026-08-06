@@ -20,20 +20,30 @@ input log → type-specific parser → DuckDB table → generic query CLI
 ## Install
 
 ```bash
-pip install https://github.sec.samsung.net/cuong-nguyen/logdb/releases/download/release/logdb-1.0.0-py3-none-any.whl
+make setup
+```
+
+Installs the module, downloads the two usage guides, and writes the default
+configs. Equivalent to:
+
+```bash
+pip install git+https://github.sec.samsung.net/cuong-nguyen/logdb.git
+
+curl -fL --create-dirs -o ~/.agents/skills/logdb-make/SKILL.md \
+  https://github.sec.samsung.net/cuong-nguyen/logdb/raw/main/skills/logdb-make/SKILL.md
+curl -fL --create-dirs -o ~/.agents/skills/logdb-query/SKILL.md \
+  https://github.sec.samsung.net/cuong-nguyen/logdb/raw/main/skills/logdb-query/SKILL.md
+
 python -m logdb config init
 ```
 
-`config init` writes one config per log type to `~/.logdb/config/` and prints
-the path. Invoke the tool as `python -m logdb` so it works regardless of
-whether pip's scripts directory is on `PATH`.
+Guides go to `~/.agents/skills` by default; override with
+`make install-skills SKILLS_DIR=path/to/skills` if your tool reads them from
+elsewhere. `config init` writes one config per log type to `~/.logdb/config/`
+and prints the path.
 
-Two usage guides live in [`skills/`](skills/) — `logdb-make` (create databases,
-manage configs) and `logdb-query` (search and analyze). Copy them into whatever
-directory your coding agent loads guide files from, keeping each named
-`SKILL.md` inside its own folder. They also read fine as plain reference.
-
-For a full copy-paste setup prompt, see [SETUP_PROMPT.txt](SETUP_PROMPT.txt).
+Invoke the tool as `python -m logdb` so it works whether or not pip's scripts
+directory is on `PATH`.
 
 
 ## Install dev
