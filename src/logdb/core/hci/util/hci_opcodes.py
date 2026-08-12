@@ -1,9 +1,12 @@
 """
-HCI Opcode definitions from Bluetooth Core Specification v5.3
+HCI Opcode definitions from Bluetooth Core Specification v5.3 through v6.3
 
 This module contains comprehensive HCI command and event definitions
 based on the official Bluetooth Core Specification.
+Updated to include Channel Sounding (CS), Decision Data, Monitored
+Advertisers, and other new commands/events introduced in Core 6.0-6.3.
 """
+
 
 # HCI Command Opcodes: (OGF << 10) | OCF
 HCI_COMMANDS = {
@@ -346,7 +349,49 @@ HCI_COMMANDS = {
     0x207C: "HCI_LE_Set_Data_Related_Address_Changes",
     0x207D: "HCI_LE_Set_Default_Subrate",
     0x207E: "HCI_LE_Subrate_Request",
+    # [Cline generated]
+    # Bluetooth Core Specification v6.3, Vol 4, Part E, Section 7.8
+    # New LE commands added in Core 6.0 - 6.3
+    0x207F: "HCI_LE_Set_Extended_Advertising_Parameters_v2",
+    0x2080: "HCI_LE_Set_Decision_Data",
+    0x2081: "HCI_LE_Set_Decision_Instructions",
+    0x2082: "HCI_LE_Set_Periodic_Advertising_Subevent_Data",
+    0x2083: "HCI_LE_Set_Periodic_Advertising_Response_Data",
+    0x2084: "HCI_LE_Set_Periodic_Sync_Subevent",
+    0x2085: "HCI_LE_Extended_Create_Connection_v2",
+    0x2086: "HCI_LE_Set_Periodic_Advertising_Parameters_v2",
+    0x2087: "HCI_LE_Read_All_Local_Supported_Features",
+    0x2088: "HCI_LE_Read_All_Remote_Features",
+    0x2089: "HCI_LE_Set_Host_Feature_v2",
+    # Channel Sounding (CS) commands - Core 6.0+
+    0x208A: "HCI_LE_CS_Read_Remote_Supported_Capabilities",
+    0x208B: "HCI_LE_CS_Write_Cached_Remote_Supported_Capabilities",
+    0x208C: "HCI_LE_CS_Security_Enable",
+    0x208D: "HCI_LE_CS_Set_Default_Settings",
+    0x208E: "HCI_LE_CS_Read_Remote_FAE_Table",
+    0x208F: "HCI_LE_CS_Write_Cached_Remote_FAE_Table",
+    0x2090: "HCI_LE_CS_Create_Config",
+    0x2091: "HCI_LE_CS_Remove_Config",
+    0x2092: "HCI_LE_CS_Set_Channel_Classification",
+    0x2093: "HCI_LE_CS_Set_Procedure_Parameters",
+    0x2094: "HCI_LE_CS_Procedure_Enable",
+    0x2095: "HCI_LE_CS_Test",
+    0x2096: "HCI_LE_CS_Test_End",
+    # Monitored Advertisers List commands - Core 6.3
+    0x2097: "HCI_LE_Add_Device_To_Monitored_Advertisers_List",
+    0x2098: "HCI_LE_Remove_Device_From_Monitored_Advertisers_List",
+    0x209A: "HCI_LE_Clear_Monitored_Advertisers_List",
+    0x209B: "HCI_LE_Read_Monitored_Advertisers_List_Size",
+    0x209C: "HCI_LE_Enable_Monitoring_Advertisers",
+    # Frame Space Update - Core 6.3
+    0x209D: "HCI_LE_Frame_Space_Update",
+    # v2 variants - Core 6.3
+    0x20A4: "HCI_LE_Set_Event_Mask_v2",
+    0x20A5: "HCI_LE_CS_Read_Local_Supported_Capabilities",
+    0x20A6: "HCI_LE_CS_Write_Cached_Remote_Supported_Capabilities_v2",
+    0x20A7: "HCI_LE_CS_Set_Security_Requirements",
 }
+
 
 # HCI Event Codes (Core Spec Vol 4, Part E, 7.7)
 # Note: all LE events share event code 0x3E and are distinguished by the
@@ -476,9 +521,25 @@ LE_META_SUBEVENT_CODES = {
     0x27: "LE_Periodic_Advertising_Subevent_Data_Request",
     0x28: "LE_Periodic_Advertising_Response_Report",
     0x29: "LE_Enhanced_Connection_Complete_v2",
+    # [Cline generated]
+    # New LE subevents from Bluetooth Core Specification v6.3
+    0x2A: "LE_CS_Read_Remote_Supported_Capabilities_Complete",
+    0x2B: "LE_CS_Read_Remote_FAE_Table_Complete",
+    0x2C: "LE_CS_Security_Enable_Complete",
+    0x2D: "LE_CS_Config_Complete",
+    0x2E: "LE_CS_Procedure_Enable_Complete",
+    0x2F: "LE_CS_Subevent_Result",
+    0x30: "LE_CS_Subevent_Result_Continue",
+    0x31: "LE_CS_Test_End_Complete",
+    0x32: "LE_Monitored_Advertisers_Report",
+    0x33: "LE_Frame_Space_Update_Complete",
+    0x34: "LE_UTP_Receive",
+    0x35: "LE_Connection_Rate_Change",
+    0x38: "LE_CS_Read_Remote_Supported_Capabilities_Complete_v2",
 }
 
 # Bluetooth Status Codes
+
 BT_STATUS_CODES = {
     0x00: "Success",
     0x01: "Unknown_HCI_Command",
@@ -668,6 +729,50 @@ LE_ADV_EVENT_TYPES = {
     0x02: "ADV_SCAN_IND",
     0x03: "ADV_NONCONN_IND",
     0x04: "SCAN_RSP",
+}
+
+# [Cline generated]
+# LE advertising type (LE_Set_Advertising_Parameters)
+LE_ADV_TYPES = {
+    0x00: "ADV_IND",
+    0x01: "ADV_DIRECT_IND_HIGH",
+    0x02: "ADV_SCAN_IND",
+    0x03: "ADV_NONCONN_IND",
+}
+
+# LE scan type (LE_Set_Scan_Parameters / LE_Set_Extended_Scan_Parameters)
+LE_SCAN_TYPES = {
+    0x00: "Passive_Scan",
+    0x01: "Active_Scan",
+}
+
+# LE advertising filter policy
+LE_ADV_FILTER_POLICIES = {
+    0x00: "Allow_All",
+    0x01: "Allow_White_List_Scan",
+    0x02: "Allow_White_List_Connect",
+    0x03: "Allow_White_List_Scan_and_Connect",
+}
+
+# LE scan filter policy
+LE_SCAN_FILTER_POLICIES = {
+    0x00: "Accept_All",
+    0x01: "Accept_Only_White_List",
+    0x02: "Accept_All_Except_Directed",
+    0x03: "Accept_Only_White_List_Except_Directed",
+}
+
+# LE initiator filter policy
+LE_INITIATOR_FILTER_POLICIES = {
+    0x00: "Use_Peer_Address",
+    0x01: "Use_White_List",
+}
+
+# LE PHY options (LE_Set_PHY)
+LE_PHY_OPTIONS = {
+    0x00: "No_Preferred_Coding",
+    0x01: "Preferred_Coded_2M",
+    0x02: "Preferred_Coded_8b",
 }
 
 
