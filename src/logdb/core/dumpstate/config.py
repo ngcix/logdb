@@ -12,6 +12,8 @@ COLUMNS = """
 """
 
 REGEX = [
+    r"^(?P<log_date>\d{2}-\d{2})\s+(?P<log_time>\d{2}:\d{2}:\d{2}\.\d+)--(?P<tag>\S+)(?:\s+(?:--|:)\s*)?(?P<message>.*)$",
+
     r"^(?:<\d+>)?\[(?P<log_time>\s*\d+\.\d+)\]\s+"
     r"(?:(?P<tag>[^:\[][^:]*):\s+)?(?P<message>.*)$",
 

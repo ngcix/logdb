@@ -126,3 +126,8 @@ src/logdb/
   core/                   Type-specific parsers and database builders
   database/               Shared DuckDB connection, table, insert, and query helpers
 ```
+
+# TODO
+- Search by timestamp
+- Hide log on production
+- Reduce query output
