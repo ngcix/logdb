@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "logdb"
-version = "1.0.0"
+version = "1.0.1"
 description = "Import diagnostic logs into DuckDB for focused querying"
 readme = "README.md"
 requires-python = ">=3.11"

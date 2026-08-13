@@ -2,7 +2,7 @@ import argparse
 import time
 from datetime import timedelta
 
-from logdb.command import config, inspect, make, next, previous, query, search
+from logdb.command import config, inspect, make, next, previous, query, search, version
 
 PROGRAM_NAME = "logdb"
 
@@ -53,6 +53,12 @@ def parser_builder() -> argparse.ArgumentParser:
     )
     config.register(config_parser)
 
+    version_parser = commands.add_parser(
+        "version",
+        help="Show version information",
+    )
+    version.register(version_parser)
+
     return parser
 
 
@@ -63,6 +69,10 @@ def main() -> int:
         args = parser.parse_args()
     except SystemExit as error:
         return int(error.code) if error.code is not None else 1
+
+    # Skip timing for version command
+    if args.cmd == "version":
+        return int(args.func(args))
 
     start_time = time.time()
     result = int(args.func(args))
