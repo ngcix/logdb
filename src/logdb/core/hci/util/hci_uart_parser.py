@@ -15,7 +15,13 @@ from .hci_opcodes import (
     KEYPRESS_NOTIFICATION_TYPES,
     LE_ADDRESS_TYPES,
     LE_ADV_EVENT_TYPES,
+    LE_ADV_FILTER_POLICIES,
+    LE_ADV_TYPES,
+    LE_INITIATOR_FILTER_POLICIES,
+    LE_PHY_OPTIONS,
     LE_PHY_TYPES,
+    LE_SCAN_FILTER_POLICIES,
+    LE_SCAN_TYPES,
     LINK_KEY_TYPES,
     LINK_TYPES,
     OOB_DATA_PRESENT,
@@ -170,6 +176,56 @@ class HCIUartParser:
         # ACL payload decoder: L2CAP channels, protocols and profiles
         self.l2cap = L2CAPParser()
 
+        # [Cline generated]
+        # Opcode -> command parameter decoder (LE commands)
+        self._command_parsers = {
+            0x2005: self._cmd_le_set_random_address,
+            0x2006: self._cmd_le_set_advertising_parameters,
+            0x2008: self._cmd_le_set_advertising_data,
+            0x2009: self._cmd_le_set_scan_response_data,
+            0x200A: self._cmd_le_set_advertising_enable,
+            0x200B: self._cmd_le_set_scan_parameters,
+            0x200C: self._cmd_le_set_scan_enable,
+            0x200D: self._cmd_le_create_connection,
+            0x200E: self._cmd_le_create_connection_cancel,
+            0x2011: self._cmd_le_add_device_to_filter_accept_list,
+            0x2012: self._cmd_le_remove_device_from_filter_accept_list,
+            0x2013: self._cmd_le_connection_update,
+            0x2014: self._cmd_le_set_host_channel_classification,
+            0x2019: self._cmd_le_enable_encryption,
+            0x201A: self._cmd_le_long_term_key_request_reply,
+            0x201B: self._cmd_le_long_term_key_request_negative_reply,
+            0x2020: self._cmd_le_remote_connection_parameter_request_reply,
+            0x2021: self._cmd_le_remote_connection_parameter_request_negative_reply,
+            0x2022: self._cmd_le_set_data_length,
+            0x2030: self._cmd_le_read_phy,
+            0x2031: self._cmd_le_set_default_phy,
+            0x2032: self._cmd_le_set_phy,
+            0x2035: self._cmd_le_set_advertising_set_random_address,
+            0x2036: self._cmd_le_set_extended_advertising_parameters,
+            0x2039: self._cmd_le_set_extended_advertising_enable,
+            0x2041: self._cmd_le_set_extended_scan_parameters,
+            0x2042: self._cmd_le_set_extended_scan_enable,
+            0x2043: self._cmd_le_extended_create_connection,
+            0x204E: self._cmd_le_set_privacy_mode,
+            0x207D: self._cmd_le_set_default_subrate,
+            0x207E: self._cmd_le_subrate_request,
+            # [Cline generated]
+            # New LE commands from Core v6.3
+            0x2080: self._cmd_le_set_decision_data,
+            0x2081: self._cmd_le_set_decision_instructions,
+            0x208C: self._cmd_le_cs_security_enable,
+            0x208D: self._cmd_le_cs_set_default_settings,
+            0x208E: self._cmd_le_cs_read_remote_fae_table,
+            0x2090: self._cmd_le_cs_create_config,
+            0x2091: self._cmd_le_cs_remove_config,
+            0x2092: self._cmd_le_cs_set_channel_classification,
+            0x2093: self._cmd_le_cs_set_procedure_parameters,
+            0x2094: self._cmd_le_cs_procedure_enable,
+            0x209D: self._cmd_le_frame_space_update,
+        }
+
+
         # Event code -> parameter decoder
         self._event_parsers = {
             # Inquiry / discovery
@@ -288,72 +344,58 @@ class HCIUartParser:
         packet.timestamp_iso = self._format_timestamp(timeline)
         packet.packet_type = "COMMAND"
         packet.direction = "SENT"
-        
+
         # Read opcode (2 bytes)
         cmd_bytes = snoop_file.read(2)
         if len(cmd_bytes) < 2:
             return None
-            
+
         # Read param length (1 byte)
         length_byte = snoop_file.read(1)
         if not length_byte:
             return None
         length = length_byte[0] & 0x00FF
-        
+
         # Calculate opcode
         opcode = (cmd_bytes[1] << 8) | cmd_bytes[0]
         packet.opcode = f'0x{opcode:04x}'
         packet.param_len = length
-        
-        # Parse specific commands (based on get_HCI_VOC_log)
-        if cmd_bytes[0] == 0x05 and cmd_bytes[1] == 0x04:
+        packet.command_name = get_command_name(opcode)
+
+        # Read the entire parameter block at once
+        data = snoop_file.read(length) if length > 0 else b''
+
+        # BR/EDR commands with special scan / connection logging
+        if opcode == 0x0405:
             # HCI_Create_Connection
-            packet.command_name = "HCI_Create_Connection"
-            bd_addr = snoop_file.read(6)
-            if len(bd_addr) >= 6:
-                packet.bd_addr = self._format_bd_addr(bd_addr)
-                packet.parameters["bd_addr"] = packet.bd_addr
-            length -= 6
-            
-        elif cmd_bytes[0] == 0x11 and cmd_bytes[1] == 0x04:
+            self._set_bd_addr(packet, data, 0)
+        elif opcode == 0x0411:
             # HCI_Authentication_Requested
-            packet.command_name = "HCI_Authentication_Requested"
-            handle = snoop_file.read(2)
-            if len(handle) >= 2:
-                packet.connection_handle = self._format_connection_handle(handle)
-                packet.parameters["connection_handle"] = packet.connection_handle
-            length = 0
-            
-        elif cmd_bytes[0] == 0x09 and cmd_bytes[1] == 0x04:
+            self._set_handle(packet, data, 0)
+        elif opcode == 0x0409:
             # HCI_Accept_Connection_Request
-            packet.command_name = "HCI_Accept_Connection_Request"
-            bd_addr = snoop_file.read(6)
-            if len(bd_addr) >= 6:
-                packet.bd_addr = self._format_bd_addr(bd_addr)
-                packet.parameters["bd_addr"] = packet.bd_addr
-            length -= 6
-            
-        elif cmd_bytes[0] == 0x01 and cmd_bytes[1] == 0x04:
+            self._set_bd_addr(packet, data, 0)
+        elif opcode == 0x0401:
             # HCI_Inquiry
-            packet.command_name = "HCI_Inquiry"
             self.is_br_scanning = True
             self.num_found = 0
             self.scan_br_log.append(f"{packet.timestamp_iso}     C     HCI_Inquiry")
-            
-        elif cmd_bytes[0] == 0x02 and cmd_bytes[1] == 0x04:
+        elif opcode == 0x0402:
             # HCI_Inquiry_Cancel
-            packet.command_name = "HCI_Inquiry_Cancel"
             self.scan_br_log.append(f"Num of founded BR/EDR device : {self.num_found}")
             self.scan_br_log.append(f"{packet.timestamp_iso}     C     HCI_Inquiry_Cancel")
             self.is_br_scanning = False
-            
-        
-        # Skip remaining bytes
-        if length > 0:
-            snoop_file.seek(length, 1)
-            
+
+        # [Cline generated]
+        # Dispatch to command-specific decoder (LE commands etc.)
+        cmd_parser = self._command_parsers.get(opcode)
+        if cmd_parser:
+            cmd_parser(packet, data)
+        elif data:
+            packet.raw_data = data.hex()
+
         # Log connection commands
-        if packet.command_name in ["HCI_Create_Connection", "HCI_Authentication_Requested", 
+        if packet.command_name in ["HCI_Create_Connection", "HCI_Authentication_Requested",
                                     "HCI_Accept_Connection_Request"]:
             log_entry = f"{packet.timestamp_iso}     C     {packet.command_name}"
             if packet.bd_addr:
@@ -361,7 +403,7 @@ class HCIUartParser:
             if packet.connection_handle:
                 log_entry += f"     Handle: {packet.connection_handle}"
             self.hci_connection_log.append(log_entry)
-            
+
         return packet
     
     def _parse_hci_acl_data(self, snoop_file, timeline: int,
@@ -1061,8 +1103,411 @@ class HCIUartParser:
         self._put(packet, "continuation_number", _u16(data, 7))
         self._put(packet, "supervision_timeout", _u16(data, 9))
 
+    # ------------------------------------------------------------------
+    # [Cline generated]
+    # LE command parameter decoders
+    # Based on Bluetooth Core Specification v5.3 / v6.3, Vol 4, Part E, Section 7.8
+    # ------------------------------------------------------------------
+
+    def _cmd_le_set_random_address(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Random_Address (0x2005): Random_Address (6 bytes)"""
+        self._set_bd_addr(packet, data, 0)
+
+    def _cmd_le_set_advertising_parameters(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Advertising_Parameters (0x2006)"""
+        self._put(packet, "advertising_interval_min", _u16(data, 0))
+        self._put(packet, "advertising_interval_max", _u16(data, 2))
+        self._put(packet, "advertising_type", _enum(_u8(data, 4), LE_ADV_TYPES))
+        self._put(packet, "own_address_type", _enum(_u8(data, 5), LE_ADDRESS_TYPES))
+        self._put(packet, "peer_address_type", _enum(_u8(data, 6), LE_ADDRESS_TYPES))
+        self._set_bd_addr(packet, data, 7)
+        adv_channel_map = _u8(data, 13)
+        if adv_channel_map is not None:
+            packet.parameters["advertising_channel_map"] = f'0x{adv_channel_map:02x}'
+        self._put(packet, "advertising_filter_policy",
+                  _enum(_u8(data, 14), LE_ADV_FILTER_POLICIES))
+
+    def _cmd_le_set_advertising_data(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Advertising_Data (0x2008): Advertising_Data_Length + Advertising_Data"""
+        data_len = _u8(data, 0)
+        self._put(packet, "advertising_data_length", data_len)
+        if data_len is not None and len(data) > 1:
+            self._put(packet, "advertising_data", data[1:1 + data_len].hex())
+
+    def _cmd_le_set_scan_response_data(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Scan_Response_Data (0x2009): Scan_Response_Data_Length + Scan_Response_Data"""
+        data_len = _u8(data, 0)
+        self._put(packet, "scan_response_data_length", data_len)
+        if data_len is not None and len(data) > 1:
+            self._put(packet, "scan_response_data", data[1:1 + data_len].hex())
+
+    def _cmd_le_set_advertising_enable(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Advertising_Enable (0x200A): Advertising_Enable (1 byte)"""
+        self._put(packet, "advertising_enable", _u8(data, 0))
+
+    def _cmd_le_set_scan_parameters(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Scan_Parameters (0x200B)"""
+        self._put(packet, "scan_type", _enum(_u8(data, 0), LE_SCAN_TYPES))
+        self._put(packet, "scan_interval", _u16(data, 1))
+        self._put(packet, "scan_window", _u16(data, 3))
+        self._put(packet, "own_address_type", _enum(_u8(data, 5), LE_ADDRESS_TYPES))
+        self._put(packet, "scanning_filter_policy",
+                  _enum(_u8(data, 6), LE_SCAN_FILTER_POLICIES))
+
+    def _cmd_le_set_scan_enable(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Scan_Enable (0x200C): Enable + Filter_Duplicates"""
+        self._put(packet, "scan_enable", _u8(data, 0))
+        self._put(packet, "filter_duplicates", _u8(data, 1))
+
+    def _cmd_le_create_connection(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Create_Connection (0x200D)"""
+        self._put(packet, "scan_interval", _u16(data, 0))
+        self._put(packet, "scan_window", _u16(data, 2))
+        self._put(packet, "initiator_filter_policy",
+                  _enum(_u8(data, 4), LE_INITIATOR_FILTER_POLICIES))
+        self._put(packet, "peer_address_type", _enum(_u8(data, 5), LE_ADDRESS_TYPES))
+        self._set_bd_addr(packet, data, 6)
+        self._put(packet, "own_address_type", _enum(_u8(data, 12), LE_ADDRESS_TYPES))
+        self._put(packet, "conn_interval_min", _u16(data, 13))
+        self._put(packet, "conn_interval_max", _u16(data, 15))
+        self._put(packet, "conn_latency", _u16(data, 17))
+        self._put(packet, "supervision_timeout", _u16(data, 19))
+        self._put(packet, "minimum_ce_length", _u16(data, 21))
+        self._put(packet, "maximum_ce_length", _u16(data, 23))
+
+    def _cmd_le_create_connection_cancel(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Create_Connection_Cancel (0x200E): no parameters"""
+        pass
+
+    def _cmd_le_add_device_to_filter_accept_list(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Add_Device_To_Filter_Accept_List (0x2011): Address_Type + Address"""
+        self._put(packet, "address_type", _enum(_u8(data, 0), LE_ADDRESS_TYPES))
+        self._set_bd_addr(packet, data, 1)
+
+    def _cmd_le_remove_device_from_filter_accept_list(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Remove_Device_From_Filter_Accept_List (0x2012): Address_Type + Address"""
+        self._put(packet, "address_type", _enum(_u8(data, 0), LE_ADDRESS_TYPES))
+        self._set_bd_addr(packet, data, 1)
+
+    def _cmd_le_connection_update(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Connection_Update (0x2013)"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "conn_interval_min", _u16(data, 2))
+        self._put(packet, "conn_interval_max", _u16(data, 4))
+        self._put(packet, "conn_latency", _u16(data, 6))
+        self._put(packet, "supervision_timeout", _u16(data, 8))
+        self._put(packet, "minimum_ce_length", _u16(data, 10))
+        self._put(packet, "maximum_ce_length", _u16(data, 12))
+
+    def _cmd_le_set_host_channel_classification(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Host_Channel_Classification (0x2014): Channel_Map (5 bytes)"""
+        if len(data) >= 5:
+            self._put(packet, "channel_map", data[0:5].hex())
+
+    def _cmd_le_enable_encryption(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Enable_Encryption (0x2019): Handle + Random(8) + EDIV(2) + LTK(16)"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "random_number", _hex(data, 2, 8))
+        ediv = _u16(data, 10)
+        if ediv is not None:
+            packet.parameters["encrypted_diversifier"] = f'0x{ediv:04x}'
+        self._put(packet, "long_term_key", _hex(data, 12, 16))
+
+    def _cmd_le_long_term_key_request_reply(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Long_Term_Key_Request_Reply (0x201A): Handle + LTK(16)"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "long_term_key", _hex(data, 2, 16))
+
+    def _cmd_le_long_term_key_request_negative_reply(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Long_Term_Key_Request_Negative_Reply (0x201B): Handle only"""
+        self._set_handle(packet, data, 0)
+
+    def _cmd_le_remote_connection_parameter_request_reply(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Remote_Connection_Parameter_Request_Reply (0x2020)"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "interval_min", _u16(data, 2))
+        self._put(packet, "interval_max", _u16(data, 4))
+        self._put(packet, "max_latency", _u16(data, 6))
+        self._put(packet, "supervision_timeout", _u16(data, 8))
+        self._put(packet, "minimum_ce_length", _u16(data, 10))
+        self._put(packet, "maximum_ce_length", _u16(data, 12))
+
+    def _cmd_le_remote_connection_parameter_request_negative_reply(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Remote_Connection_Parameter_Request_Negative_Reply (0x2021): Handle + Reason"""
+        self._set_handle(packet, data, 0)
+        self._set_reason(packet, data, 2)
+
+    def _cmd_le_set_data_length(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Data_Length (0x2022): Handle + Tx_Octets + Tx_Time"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "tx_octets", _u16(data, 2))
+        self._put(packet, "tx_time", _u16(data, 4))
+
+    def _cmd_le_read_phy(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Read_PHY (0x2030): Handle only"""
+        self._set_handle(packet, data, 0)
+
+    def _cmd_le_set_default_phy(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Default_PHY (0x2031): All_PHYs + TX_PHYs + RX_PHYs"""
+        self._put(packet, "all_phys", _u8(data, 0))
+        self._put(packet, "tx_phys", _u8(data, 1))
+        self._put(packet, "rx_phys", _u8(data, 2))
+
+    def _cmd_le_set_phy(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_PHY (0x2032): Handle + All_PHYs + TX_PHYs + RX_PHYs + PHY_Options"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "all_phys", _u8(data, 2))
+        self._put(packet, "tx_phys", _u8(data, 3))
+        self._put(packet, "rx_phys", _u8(data, 4))
+        phy_options = _u16(data, 5)
+        if phy_options is not None:
+            packet.parameters["phy_options"] = f'0x{phy_options:04x}'
+            packet.parameters["phy_options_name"] = _enum(phy_options, LE_PHY_OPTIONS)
+
+    def _cmd_le_set_advertising_set_random_address(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Advertising_Set_Random_Address (0x2035): Adv_Handle + Random_Address"""
+        self._put(packet, "advertising_handle", _u8(data, 0))
+        self._set_bd_addr(packet, data, 1)
+
+    def _cmd_le_set_extended_advertising_parameters(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Extended_Advertising_Parameters (0x2036)"""
+        self._put(packet, "advertising_handle", _u8(data, 0))
+        adv_event_props = _u16(data, 1)
+        if adv_event_props is not None:
+            packet.parameters["advertising_event_properties"] = f'0x{adv_event_props:04x}'
+        self._put(packet, "primary_advertising_interval_min", _u32(data, 3))
+        self._put(packet, "primary_advertising_interval_max", _u32(data, 7))
+        self._put(packet, "primary_advertising_channel_map", _u8(data, 11))
+        self._put(packet, "own_address_type", _enum(_u8(data, 12), LE_ADDRESS_TYPES))
+        self._put(packet, "peer_address_type", _enum(_u8(data, 13), LE_ADDRESS_TYPES))
+        self._set_bd_addr(packet, data, 14)
+        self._put(packet, "advertising_filter_policy",
+                  _enum(_u8(data, 20), LE_ADV_FILTER_POLICIES))
+        self._put(packet, "advertising_tx_power", _s8(data, 21))
+        self._put(packet, "primary_advertising_phy", _enum(_u8(data, 22), LE_PHY_TYPES))
+        self._put(packet, "secondary_max_advertising_skip", _u8(data, 23))
+        self._put(packet, "secondary_advertising_phy", _enum(_u8(data, 24), LE_PHY_TYPES))
+        self._put(packet, "advertising_sid", _u8(data, 25))
+        self._put(packet, "scan_request_notification_enable", _u8(data, 26))
+
+    def _cmd_le_set_extended_advertising_enable(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Extended_Advertising_Enable (0x2039): Enable + Num_Sets + [Handle + Duration + Max_Events]*"""
+        self._put(packet, "enable", _u8(data, 0))
+        num_sets = _u8(data, 1)
+        self._put(packet, "num_sets", num_sets)
+        if num_sets is not None:
+            sets = []
+            for i in range(num_sets):
+                base = 2 + i * 4
+                sets.append({
+                    "advertising_handle": _u8(data, base),
+                    "duration": _u16(data, base + 1),
+                    "max_extended_advertising_events": _u8(data, base + 3),
+                })
+            if sets:
+                packet.parameters["advertising_sets"] = sets
+
+    def _cmd_le_set_extended_scan_parameters(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Extended_Scan_Parameters (0x2041)"""
+        self._put(packet, "own_address_type", _enum(_u8(data, 0), LE_ADDRESS_TYPES))
+        self._put(packet, "scanning_filter_policy",
+                  _enum(_u8(data, 1), LE_SCAN_FILTER_POLICIES))
+        scanning_phys = _u8(data, 2)
+        self._put(packet, "scanning_phys", f'0x{scanning_phys:02x}' if scanning_phys is not None else None)
+        # Per-PHY scan parameters follow: Scan_Type, Scan_Interval, Scan_Window
+        if scanning_phys is not None:
+            phys = []
+            offset = 3
+            for bit in range(3):
+                if scanning_phys & (1 << bit):
+                    entry = {
+                        "phy": _enum(bit + 1, LE_PHY_TYPES),
+                        "scan_type": _enum(_u8(data, offset), LE_SCAN_TYPES),
+                        "scan_interval": _u16(data, offset + 1),
+                        "scan_window": _u16(data, offset + 3),
+                    }
+                    phys.append(entry)
+                    offset += 5
+            if phys:
+                packet.parameters["phy_scan_parameters"] = phys
+
+    def _cmd_le_set_extended_scan_enable(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Extended_Scan_Enable (0x2042): Enable + Filter_Duplicates + Duration + Period"""
+        self._put(packet, "enable", _u8(data, 0))
+        self._put(packet, "filter_duplicates", _u8(data, 1))
+        self._put(packet, "duration", _u16(data, 2))
+        self._put(packet, "period", _u16(data, 4))
+
+    def _cmd_le_extended_create_connection(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Extended_Create_Connection (0x2043)"""
+        self._put(packet, "initiator_filter_policy",
+                  _enum(_u8(data, 0), LE_INITIATOR_FILTER_POLICIES))
+        self._put(packet, "own_address_type", _enum(_u8(data, 1), LE_ADDRESS_TYPES))
+        self._put(packet, "peer_address_type", _enum(_u8(data, 2), LE_ADDRESS_TYPES))
+        self._set_bd_addr(packet, data, 3)
+        initiating_phys = _u8(data, 9)
+        self._put(packet, "initiating_phys", f'0x{initiating_phys:02x}' if initiating_phys is not None else None)
+        # Per-PHY connection parameters follow
+        if initiating_phys is not None:
+            phys = []
+            offset = 10
+            for bit in range(3):
+                if initiating_phys & (1 << bit):
+                    entry = {
+                        "phy": _enum(bit + 1, LE_PHY_TYPES),
+                        "scan_interval": _u16(data, offset),
+                        "scan_window": _u16(data, offset + 2),
+                        "conn_interval_min": _u16(data, offset + 4),
+                        "conn_interval_max": _u16(data, offset + 6),
+                        "conn_latency": _u16(data, offset + 8),
+                        "supervision_timeout": _u16(data, offset + 10),
+                        "min_ce_length": _u16(data, offset + 12),
+                        "max_ce_length": _u16(data, offset + 14),
+                    }
+                    phys.append(entry)
+                    offset += 16
+            if phys:
+                packet.parameters["phy_connection_parameters"] = phys
+
+    def _cmd_le_set_privacy_mode(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Privacy_Mode (0x204E): Peer_Address_Type + Peer_Address + Privacy_Mode"""
+        self._put(packet, "peer_address_type", _enum(_u8(data, 0), LE_ADDRESS_TYPES))
+        self._set_bd_addr(packet, data, 1)
+        self._put(packet, "privacy_mode", _u8(data, 7))
+
+    def _cmd_le_set_default_subrate(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Default_Subrate (0x207D)"""
+        self._put(packet, "subrate_factor", _u16(data, 0))
+        self._put(packet, "peripheral_latency", _u16(data, 2))
+        self._put(packet, "continuation_number", _u16(data, 4))
+        self._put(packet, "supervision_timeout", _u16(data, 6))
+
+    def _cmd_le_subrate_request(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Subrate_Request (0x207E)"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "subrate_factor", _u16(data, 2))
+        self._put(packet, "peripheral_latency", _u16(data, 4))
+        self._put(packet, "continuation_number", _u16(data, 6))
+        self._put(packet, "supervision_timeout", _u16(data, 8))
+
+    # ------------------------------------------------------------------
+    # [Cline generated]
+    # New LE command decoders from Bluetooth Core Specification v6.3
+    # Channel Sounding (CS), Decision Data, Monitored Advertisers,
+    # Frame Space Update commands
+    # ------------------------------------------------------------------
+
+    def _cmd_le_set_decision_data(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Decision_Data (0x2080): Adv_Handle + Decision_Type_Flags + Length + Data"""
+        self._put(packet, "advertising_handle", _u8(data, 0))
+        self._put(packet, "decision_type_flags", _u8(data, 1))
+        data_len = _u8(data, 2)
+        self._put(packet, "decision_data_length", data_len)
+        if data_len is not None and len(data) > 3:
+            self._put(packet, "decision_data", data[3:3 + data_len].hex())
+
+    def _cmd_le_set_decision_instructions(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Set_Decision_Instructions (0x2081): Adv_Handle + Length + Instructions"""
+        self._put(packet, "advertising_handle", _u8(data, 0))
+        data_len = _u8(data, 1)
+        self._put(packet, "instructions_length", data_len)
+        if data_len is not None and len(data) > 2:
+            self._put(packet, "instructions", data[2:2 + data_len].hex())
+
+    def _cmd_le_cs_security_enable(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_CS_Security_Enable (0x208C): Connection_Handle only"""
+        self._set_handle(packet, data, 0)
+
+    def _cmd_le_cs_set_default_settings(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_CS_Set_Default_Settings (0x208D)"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "cs_initiator_role", _u8(data, 2))
+        self._put(packet, "reflector_role", _u8(data, 3))
+        self._put(packet, "cs_sync_phy", _enum(_u8(data, 4), LE_PHY_TYPES))
+        self._put(packet, "cs_sync_channel_selection_algorithm", _u8(data, 5))
+        self._put(packet, "cs_max_tx_power", _s8(data, 6))
+
+    def _cmd_le_cs_read_remote_fae_table(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_CS_Read_Remote_FAE_Table (0x208E): Connection_Handle only"""
+        self._set_handle(packet, data, 0)
+
+    def _cmd_le_cs_create_config(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_CS_Create_Config (0x2090)"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "config_id", _u8(data, 2))
+        self._put(packet, "main_mode_type", _u8(data, 3))
+        self._put(packet, "sub_mode_type", _u8(data, 4))
+        self._put(packet, "min_main_mode_steps", _u8(data, 5))
+        self._put(packet, "max_main_mode_steps", _u8(data, 6))
+        self._put(packet, "main_mode_repetition", _u8(data, 7))
+        self._put(packet, "mode_0_steps", _u8(data, 8))
+        self._put(packet, "role", _u8(data, 9))
+        self._put(packet, "rtt_type", _u8(data, 10))
+        self._put(packet, "cs_sync_phy", _enum(_u8(data, 11), LE_PHY_TYPES))
+        self._put(packet, "cs_sync_antenna_selection", _u8(data, 12))
+        self._put(packet, "subevent_len", _u16(data, 13))
+        self._put(packet, "subevent_interval", _u16(data, 15))
+        self._put(packet, "subevent_count", _u8(data, 17))
+        self._put(packet, "procedure_interval", _u16(data, 18))
+        self._put(packet, "procedure_count", _u16(data, 20))
+        self._put(packet, "max_procedure_length", _u16(data, 22))
+        self._put(packet, "preferred_peer_antenna", _u8(data, 24))
+        self._put(packet, "snr_control_initiator", _u8(data, 25))
+        self._put(packet, "snr_control_reflector", _u8(data, 26))
+        self._put(packet, "cs_channel_map", _hex(data, 27, 10))
+        self._put(packet, "cs_channel_map_repetition", _u8(data, 37))
+        self._put(packet, "channel_selection_type", _u8(data, 38))
+        self._put(packet, "ch3c_shape", _u8(data, 39))
+        self._put(packet, "ch3c_jump", _u8(data, 40))
+        self._put(packet, "t_ip1_time", _u8(data, 41))
+        self._put(packet, "t_ip2_time", _u8(data, 42))
+        self._put(packet, "t_fcs_time", _u8(data, 43))
+        self._put(packet, "t_pm_time", _u8(data, 44))
+
+    def _cmd_le_cs_remove_config(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_CS_Remove_Config (0x2091): Handle + Config_ID"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "config_id", _u8(data, 2))
+
+    def _cmd_le_cs_set_channel_classification(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_CS_Set_Channel_Classification (0x2092): Channel_Classification (10 bytes)"""
+        self._put(packet, "channel_classification", _hex(data, 0, 10))
+
+    def _cmd_le_cs_set_procedure_parameters(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_CS_Set_Procedure_Parameters (0x2093)"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "config_id", _u8(data, 2))
+        self._put(packet, "max_procedure_len", _u16(data, 3))
+        self._put(packet, "min_procedure_interval", _u16(data, 5))
+        self._put(packet, "max_procedure_interval", _u16(data, 7))
+        self._put(packet, "max_procedure_count", _u16(data, 9))
+        self._put(packet, "min_subevent_len", _u16(data, 11))
+        self._put(packet, "max_subevent_len", _u16(data, 13))
+        self._put(packet, "tone_antenna_config_selection", _u8(data, 15))
+        self._put(packet, "phy", _enum(_u8(data, 16), LE_PHY_TYPES))
+        self._put(packet, "tx_power_delta", _s8(data, 17))
+        self._put(packet, "preferred_peer_antenna", _u8(data, 18))
+        self._put(packet, "snr_control_initiator", _u8(data, 19))
+        self._put(packet, "snr_control_reflector", _u8(data, 20))
+
+    def _cmd_le_cs_procedure_enable(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_CS_Procedure_Enable (0x2094): Handle + Config_ID + Enable + Direction"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "config_id", _u8(data, 2))
+        self._put(packet, "enable", _u8(data, 3))
+        self._put(packet, "cs_procedure_direction", _u8(data, 4))
+
+    def _cmd_le_frame_space_update(self, packet: HCIUartPacket, data: bytes) -> None:
+        """LE_Frame_Space_Update (0x209D)"""
+        self._set_handle(packet, data, 0)
+        self._put(packet, "frame_space_min", _u16(data, 2))
+        self._put(packet, "frame_space_max", _u16(data, 4))
+        self._put(packet, "phys", _u8(data, 6))
+        self._put(packet, "spacing_types", _u8(data, 7))
+
 
     def parse_cfa_file(self, cfa_path: str) -> List[HCIUartPacket]:
+
         """
         Parse .cfa file and extract all HCI UART packets.
         Exactly following get_HCI_VOC_log from BTHelper.py
