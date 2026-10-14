@@ -1,12 +1,68 @@
 ---
 name: logdb-make
 description: Create and manage DuckDB databases from diagnostic logs (dumpstate, pcap, hci). Use when initializing a new case database or regenerating with updated config.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # LogDB — Database Creation & Configuration
 
 Initialize and manage DuckDB databases from diagnostic log files with automatic schema configuration.
+
+## Step 0 — Install & Update Check
+
+Run this once per session, before any other command. It is written in Python and
+uses `git`, so it behaves identically on Windows, Linux, and macOS — no `curl` vs
+`curl.exe`, no bash vs PowerShell differences.
+
+```bash
+python -c "
+import importlib.metadata as md, subprocess, re
+GIT = 'git@github.sec.samsung.net:cuong-nguyen/logdb.git'
+try: local = md.version('logdb')
+except md.PackageNotFoundError: local = None
+if local is None:
+    print('INSTALL'); raise SystemExit
+try:
+    out = subprocess.run(['git','ls-remote','--tags',GIT], capture_output=True, text=True, timeout=20)
+    vs = re.findall(r'refs/tags/v([0-9]+(?:[.][0-9]+)*)$', out.stdout, re.M)
+    remote = max(vs, key=lambda s: [int(x) for x in s.split('.')]) if vs else None
+except Exception:
+    remote = None
+if remote is None:
+    print('OFFLINE', local); raise SystemExit
+print('UPDATE' if local != remote else 'OK', local, remote)
+"
+```
+
+Act on the single word it prints:
+
+| Output | Meaning | Action |
+|---|---|---|
+| `INSTALL` | Not installed | Run the install command below, then continue |
+| `OK <local> <remote>` | Already up to date | Continue, say nothing |
+| `UPDATE <local> <remote>` | A newer release tag exists | Install, then tell the user the new version |
+| `OFFLINE <local>` | Repo unreachable (no VPN, no git auth) | Skip the update, continue with what is installed |
+
+Install / upgrade — identical on every platform:
+
+```bash
+python -m pip install -U git+https://github.sec.samsung.net/cuong-nguyen/logdb.git
+```
+
+Notes:
+
+- The check reads **release tags** (`v1.1.0`), not branch contents. A commit pushed
+  to `main` without a new tag is deliberately ignored, so users only move between
+  tested releases.
+- `git ls-remote` reuses the SSH key or credential helper that `git`/`pip` already
+  use. Plain HTTPS requests to `raw/main` are **not** a usable substitute on this
+  server: unauthenticated requests return an LDAP sign-in **HTML page with HTTP
+  200**, which silently looks like a successful fetch.
+- Never block the user's task on this check. `OFFLINE` is normal off-VPN — proceed
+  with the installed version.
+- On Windows, if `python` is not found, use the `py` launcher (`py -c`, `py -m pip`).
+- If the install itself fails, report the error and stop — nothing else works
+  without the tool.
 
 ## Setup — Resolve the Tool
 

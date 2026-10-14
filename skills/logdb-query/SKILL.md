@@ -1,7 +1,7 @@
 ---
 name: logdb-query
 description: Query and search large diagnostic logs in DuckDB databases efficiently. Use when analyzing patterns, navigating context, extracting evidence, or running complex queries for RCA.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # LogDB — Query & Search Tool
